@@ -26,21 +26,33 @@ body {
     background: #edece8;
     color: #666;
     font-family: "museo-slab-1", "museo-slab-2", "Rockwell", "Georgia", serif;
-    text-align: center;
-    padding: 10% 0;
+    margin: 0;
+    padding: 0 0 50px;
+    /*text-align: center;*/
+}
+pre {
+    padding: 15px;
+    background: #fff;
+    border-radius: 15px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: Consolas, "Andale Mono WT", "Andale Mono", "Lucida Console", "Lucida Sans Typewriter", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", "Nimbus Mono L", Monaco, "Courier New", Courier, monospace;
+    overflow: auto;
+    -webkit-box-shadow: inset 0 1px 0 0 #fff, 0 1px 2px 0 #ddd;
+    box-shadow: inset 0 1px 0 0 #fff, 0 1px 2px 0 #ddd;
 }
 
 h1 {
     font-size: 60px;
     text-shadow: 2px 2px 2px #fff;
-    margin: 0 0 10px;
+    margin: 50px 0;
 }
 
 #sub-head {
     margin-bottom: 40px;
 }
 
-#file-upload-form {
+#main {
     width: 650px;
     margin: 0 auto;
 }
@@ -305,13 +317,17 @@ h1 {
 }
 
 #top-bar {
-    background: #333;
-    position: absolute;
-    top: 0;
-    left: 0;
+    /*position: absolute;*/
+    /*top: 0;*/
+    /*left: 0;*/
     width: 100%;
+    background: #333;
     color: #ccc;
     padding: 7px 0 10px;
+}
+#top-bar ul {
+    width: 650px;
+    margin: 0 auto;
 }
 nav ul {
     margin: 0;
@@ -331,37 +347,50 @@ nav ul {
     text-decoration: none;
 }
 
-#example-nav {
-    margin-bottom: 20px; }
-#example-nav li {
+#main-nav {
+    margin-bottom: 50px; }
+#main-nav li {
     display: inline;
-    font-size: 18px; }
-#example-nav a {
+    font-size: 18px;
+    padding-right: 20px;
+    margin-right: 20px;
+    border-right: 1px solid #ccc; }
+#main-nav a {
     color: #333;
     text-decoration: none; }
-#example-nav .active a {
+#main-nav .active a {
     text-decoration: underline;
 }
 #examples {
     width: 650px;
     margin: 0 auto;
 }
-.syntaxhighlighter {
-    margin-top: 50px !important;
+#examples form {
+    margin-bottom: 20px;
 }
-.example {
-
+#options table {
+    width: 100%;
 }
-pre {
+#options table tr {}
+#options table th {
     text-align: left;
+    background: #333;
+    color: #ccc;
 }
+#options table th,
+#options table td {
+    padding: 15px 5px;
+    border-bottom: 1px solid #ccc;
+    vertical-align: middle;
+}
+
+
 </style>
 <script type="text/javascript" src="http://use.typekit.com/bax4uqj.js"></script>
 <script type="text/javascript">try {Typekit.load();} catch (e) {}</script>
 
 </head>
 <body>
-
 <nav id="top-bar">
     <ul>
         <li>Download: <a href="../dist/FileUploadPlugin.min.js" target="_blank">Minified 2.3KB</a> | <a href="../dist/FileUploadPlugin.js" target="_blank">Full Source 13.8KB</a></li>
@@ -371,52 +400,94 @@ pre {
     </ul>
 </nav>
 
-<h1>Ajax File Upload</h1>
+<div id="main">
+    <h1>Ajax File Upload</h1>
 
 
-<nav id="example-nav">
-    <ul>
-        <li class="active"><a href="#example1">Example 1</a></li>
-        <li><a href="#example2">Example 2</a></li>
-        <!--<li><a href="#example3"></a></li>-->
-    </ul>
-</nav>
+    <nav id="main-nav">
+        <ul>
+            <li class="active"><a href="#examples">Examples</a></li>
+            <li><a href="#options">Options</a></li>
+            <!--<li><a href="#example3"></a></li>-->
+        </ul>
+    </nav>
 
-<div id="examples">
+    <div id="sections">
 
-    <div id="example1" class="example">
-        <form action="upload.php" method="post" enctype="multipart/form-data" encoding="multipart/form-data" id="file-upload-form1">
-            <input type="file" name="file" id="file1"/>
-        </form>
-        <script type="text/javascript" charset="utf-8">
-            $('#file1').ajaxFileUpload({
-                url: "upload.php",
-                onSuccess: function(data) {
-                    alert(data);
-                }
-            });
-        </script>
-        <pre class="brush: js; tab-size: 2;">&lt;script type=&quot;text/javascript&quot; charset=&quot;utf-8&quot;&gt;
+        <div id="examples" class="section">
+            <div class="example">
+                <h2>Example 1: Simple ajax auto-upload upon selection.</h2>
+                <form action="upload.php" method="post" enctype="multipart/form-data" id="file-upload-form1">
+                    <label for="file1">Select a file: </label>
+                    <input type="file" name="file" id="file1"/>
+                </form>
+                <script type="text/javascript" charset="utf-8">
+                    //            $('#file1').ajaxFileUpload({
+                    var input = document.getElementById("file1");
+                    new AjaxFileUpload(input, {
+                        url: "upload.php",
+                        onSuccess: function(data, formData, xhr) {
+                            console.log(data, formData, xhr);
+                            var response = JSON.stringify(data);
+                            $(input).parents('.example').find('.response').show().find('pre').text(response);
+                        }
+                    });
+                </script>
+                <strong>HTML:</strong>
+            <pre class="brush: js; tab-size: 2;">&lt;form action=&quot;upload.php&quot; method=&quot;post&quot; enctype=&quot;multipart/form-data&quot; id=&quot;file-upload-form1&quot;&gt;
+    &lt;label for=&quot;file1&quot;&gt;Select a file: &lt;/label&gt;
+    &lt;input type=&quot;file&quot; name=&quot;file&quot; id=&quot;file1&quot;/&gt;
+&lt;/form&gt;</pre>
+                <strong>JS:</strong>
+                <pre>&lt;script type=&quot;text/javascript&quot; charset=&quot;utf-8&quot;&gt;
 $(&#x27;#file1&#x27;).ajaxFileUpload({
     url: &quot;upload.php&quot;
 });
-&lt;/script&gt;
-        </pre>
+&lt;/script&gt;</pre>
+                <div class="response" style="display: none;">
+                    <strong>Response</strong>
+                    <pre></pre>
+                </div>
+            </div>
+        </div>
+
+        <div id="options" class="section" style="display: none">
+            <table cellspacing="0" border="0">
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Default Value</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>url</td>
+                        <td>""</td>
+                        <td><strong>(Required)</strong> <em>String</em> URL to upload controller.</td>
+                    </tr>
+                    <tr>
+                        <td>additionalData</td>
+                        <td>{}</td>
+                        <td><em>Object</em> Additional data that will get posted along with the file data.</td>
+                    </tr>
+                    <tr>
+                        <td>autoUpload</td>
+                        <td>true</td>
+                        <td><em>Boolean</em> If true, ajax upload will fire upon dialog selection.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <div id="example2" class="example">
-        <form action="upload.php" method="post" enctype="multipart/form-data" encoding="multipart/form-data" id="file-upload-form2">
-            <input type="file" name="file" id="file2"/>
-        </form>
-    </div>
 </div>
 
-
 <script type="text/javascript">
-    $(".example").not($("nav#example-nav .active a").attr("href")).hide();
-    $("nav#example-nav a").click(function(e){
-        $(".example").hide();
-        $("nav#example-nav .active").removeClass("active");
+    $(".section").not($("nav#main-nav .active a").attr("href")).hide();
+    $("nav#main-nav a").click(function(e){
+        $(".section").hide();
+        $("nav#main-nav .active").removeClass("active");
         var target = $($(e.target).attr("href"));
         target.show();
         $(e.target).parents("li").addClass("active");

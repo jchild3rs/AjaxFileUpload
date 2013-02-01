@@ -1,135 +1,174 @@
 class AjaxFileUpload
 
+  defaultSettings =
+    url:                  ""
+    additionalData:       {}
+    autoUpload:           true
+    namespace:            ""
+    sizeLimit:            1000000
+    onSuccess:            -> # **{Function}** Fires on successful ajax response.
+    onError:              -> # **{Function}*
+    onFileSelect:         -> # **{Function}*
+    onProgress:           -> # **{Function}*
+    onProgressStart:      -> # **{Function}*
+    onProgressEnd:        -> # **{Function}*
+
   constructor: (@input, options) ->
 
-    # back out if input isnt file
-    return if utils.validate.inputType @input.type is false
+    # back out if input is null or isnt file
+    return if @input is null or @utils.validate.inputType @input.type is false
 
     # merge provided settings w/ default
-    @settings = utils.merge defaultSettings, options
+    @settings = @utils.merge defaultSettings, options
 
-    # bind change event to input
-#    $(@input).on 'change', =>
-    utils.bind @input, "change", =>
-      handleFileSelection @input, @settings
-      return
+    # setup additional post data
+    if @settings.additionalData isnt {}
+      @settings.url += "?#{@utils.serialize @settings.additionalData}"
+
+    # if url not defined, check for url in data attribute "data-url",
+    if @settings.url is ""
+      @settings.url = @input.getAttribute "data-url"
+    # if thats empty, use the forms action. otherwise, return
+    if @settings.url is "" and @input.form.action isnt ""
+      @settings.url = @input.form.action
+    return if @settings.url is ""
+
+    # bindEvent change event to input
+    @utils.bindEvent @input, "change", @handleFileSelection
+
+    # create local XHR object
+    @xhr = new XMLHttpRequest()
+
+    # create formData obj
+    @formData = new FormData() if @utils.has.formData
 
 
-  handleFileSelection = (input, settings) ->
-#    if utils.has.fileAPI
-#      console.log "validation is supported"
-    if settings.autoUpload
-      upload input, settings
+  handleFileSelection: (event) =>
+    @upload() if @settings.autoUpload
+    @settings.onFileSelect.apply @, [event.target]
     return
 
-  upload = (input, settings) ->
-    if utils.has.ajaxUpload
-      ajaxUpload input, settings
+  upload: =>
+    if @utils.has.ajaxUpload
+      @ajaxUpload()
     else
-      iframeUpload input, settings
+      @iframeUpload()
     return
 
-  ajaxUpload = (input, settings) ->
-    url = settings.url
-    xhr = new XMLHttpRequest();
-    xhr.open "POST", url, true
+  ajaxUpload: =>
+    if @xhr.upload
+      @xhr.upload.addEventListener "progress", @handleAjaxProgress, false
+      @xhr.upload.addEventListener "loadstart", @handleAjaxProgressStart, false
+      @xhr.upload.addEventListener "load", @handleAjaxProgressLoad, false
+    else
+      @xhr.addEventListener "progress", @handleAjaxProgress, false
+    @xhr.addEventListener "readystatechange", @handleAjaxStateChange, false
 
-    utils.bind xhr, "load", handleAjaxResponse, false
-    utils.bind xhr.upload, "progress", handleAjaxProgress, false
-    utils.bind xhr.upload, "loadstart", handleAjaxProgressStart, false
-    utils.bind xhr.upload, "loadend", handleAjaxProgressEnd, false
+    # get file(s) data
+    @formData.append file.name, file for file in @input.files
 
-    formData = new FormData()
-    formData.append file.name, file for file in input.files
+    @xhr.processData = false
+    @xhr.contentType = false
 
-    xhr.send formData
+    @xhr.open "POST", @settings.url, true
+    @xhr.send @formData
 
     return
 
-  handleAjaxResponse = (event) ->
-    xhr = event.target
-    settings.onSuccess($.parseJSON(xhr.responseText))
-    console.log "request response: ", xhr.status, xhr.responseText
+  handleAjaxStateChange: (event) =>
+    return  unless @xhr.readyState is 4
+    data = JSON.parse @xhr.responseText
+    if @xhr.status is 200 or @xhr.status is 201
+      @settings.onSuccess.apply @, [data, event.target.files, @xhr]
+    else
+      @settings.onError.apply @, [data, event.target.files, @xhr]
+    return
 
-  handleAjaxProgress = =>
-  handleAjaxProgressStart = =>
-  handleAjaxProgressEnd = =>
+  handleAjaxProgressLoad: (event) =>
+    @settings.onProgressEnd.apply @, [event.target, event.target.files, @xhr]
 
-  iframeUpload = (input, settings) ->
-    url = settings.url
-    input.form.action = url
-    input.form.target = "fu-iframe"
-    input.form.method = "post"
-    input.form.enctype = "multipart/form-data"
-    input.form.encoding = "multipart/form-data"
+  handleAjaxProgress: (event) =>
+    @settings.onProgress.apply @, [event.target, event.target.files, @xhr]
 
+  handleAjaxProgressStart: (event) =>
+    @settings.onProgressStart.apply @, [event.target, event.target.files, @xhr]
+
+  iframeUpload: =>
+    @input.form.action = @settings.url
+    @input.form.target = "fu-iframe"
+    @input.form.method = "post"
+    @input.form.enctype = "multipart/form-data"
+    @input.form.encoding = "multipart/form-data"
+
+    # create iframe if not present
     iframe = document.getElementById "fu-iframe"
     if iframe is null
-      iframe = document.createElement('iframe')
+      iframe = document.createElement "iframe"
       iframe.id = "fu-iframe"
-    iframe.name = "fu-iframe"
-    iframe.style.display = 'none';
 
-    utils.bind iframe, "load", ->
-      response = window.frames["fu-iframe"].document.body.innerHTML
-      data = JSON.stringify(response)
-      settings.onSuccess(data)
+    # set mandatory attributes
+    iframe.name = "fu-iframe"
+    iframe.style.display = 'none'
+
+    @utils.bindEvent iframe, "load", =>
+      # if text/plain content type is used, most browsers will wrap response in <pre> tag
+      if window.frames["fu-iframe"].document.body.children.length > 0
+        response = window.frames["fu-iframe"].document.body.children[0].innerHTML
+      else
+        response = window.frames["fu-iframe"].document.body.innerHTML
+      data = JSON.parse response
+      @settings.onSuccess.apply @, [data, @input.value, @xhr]
+
+    @utils.bindEvent iframe, "error", =>
+      if window.frames["fu-iframe"].document.body.children.length > 0
+        response = window.frames["fu-iframe"].document.body.children[0].innerHTML
+      else
+        response = window.frames["fu-iframe"].document.body.innerHTML
+      data = JSON.parse response
+      @settings.onError.apply @, [data, @input.value, @xhr]
+      return
 
     if document.getElementById("fu-iframe") is null
       document.body.appendChild iframe
 
-    input.form.submit()
+    @input.form.submit()
 
     return
 
+  utils:
 
-
-
-
-  defaultSettings =
-    url: ""
-    autoUpload: true
-    onSuccess: ->                   # **{Function}** Fires on successful ajax response.
-    onError: ->                     # **{Function}*
-    onSelect: ->                    # **{Function}*
-    onProgress: ->                  # **{Function}*
-    onProgressStart: ->             # **{Function}*
-    onProgressEnd: ->               # **{Function}*
-
-
-  utils =
-  
-    bind: (element, eventName, callback, useCapture) ->
-      useCapture = true if !!useCapture
-      if element.addEventListener?
-        element.addEventListener eventName, callback, useCapture
-      else
-        element.attachEvent "on#{eventName}", callback
-
-#    extend: ->
-#      Obj = ->
-#      i = arguments.length
-#      while i--
-#        for m of arguments[i]
-#          Obj::[m] = arguments[i][m]
-#      return new Obj()
+    serialize: (obj, prefix) =>
+      str = []
+      for p, v of obj
+        k = if prefix then prefix + "[" + p + "]" else p
+        if typeof v == "object"
+          str.push @utils.serialize(v, k)
+        else
+          str.push encodeURIComponent(k) + "=" + encodeURIComponent(v)
+      str.join "&"
 
     merge: (obj1, obj2) ->
       for p of obj2
         try
-          # Property in destination object set; update its value.
           if obj2[p].constructor is Object
-            obj1[p] = utils.merge(obj1[p], obj2[p])
+            obj1[p] = @utils.merge obj1[p], obj2[p]
           else
             obj1[p] = obj2[p]
         catch e
-          # Property in destination object not set; create it and set its value.
           obj1[p] = obj2[p]
       obj1
 
     has:
+      formData : window.FormData
       fileAPI: window.File and window.FileReader and window.FileList and window.Blob
-      ajaxUpload: window.XMLHttpRequestUpload
+      ajaxUpload: !!window.XMLHttpRequestUpload
+
+    bindEvent: (element, eventName, callback, useCapture) ->
+      useCapture = true if !!useCapture
+      if typeof element.addEventListener isnt "undefined"
+        element.addEventListener eventName, callback, useCapture
+      else
+        element.attachEvent "on#{eventName}", callback
 
     triggerEvent: (el, type) ->
       if (el[type] or false) and typeof el[type] is "function"
@@ -137,18 +176,15 @@ class AjaxFileUpload
       return
 
     validate:
-      inputType: (type) ->
-        return type is "file"
-      fileName: ->
-      fileSize: ->
-      fileType: ->
-
+      inputType: (type) -> return type is "file"
+      fileName: (name) -> return name isnt ""
+#      fileSize: (size) => return size <= @settings.sizeLimit
 
 if window.jQuery
   jQuery.ajaxFileUpload = AjaxFileUpload
   jQuery.fn.ajaxFileUpload = (options) ->
     this.each (i, input) ->
-      new AjaxFileUpload(input, options);
+      new AjaxFileUpload input, options
       return
 
 if typeof define is "function" and define.amd
