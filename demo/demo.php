@@ -53,7 +53,7 @@ h1 {
 }
 
 #main {
-    width: 650px;
+    width: 750px;
     margin: 0 auto;
 }
 
@@ -305,14 +305,14 @@ h1 {
 }
 
 #response-data {
-    width: 650px;
+    width: 750px;
     margin: 100px auto 0;
 }
 
 #response-data textarea {
     background: none;
     border: 0;
-    width: 650px;
+    width: 750px;
     overflow: scroll;
 }
 
@@ -326,7 +326,7 @@ h1 {
     padding: 7px 0 10px;
 }
 #top-bar ul {
-    width: 650px;
+    width: 750px;
     margin: 0 auto;
 }
 nav ul {
@@ -362,7 +362,7 @@ nav ul {
     text-decoration: underline;
 }
 #examples {
-    width: 650px;
+    width: 750px;
     margin: 0 auto;
 }
 #examples form {
@@ -394,23 +394,25 @@ nav ul {
 <nav id="top-bar">
     <ul>
         <li>Download: <a href="../dist/FileUploadPlugin.min.js" target="_blank">Minified 2.3KB</a> | <a href="../dist/FileUploadPlugin.js" target="_blank">Full Source 13.8KB</a></li>
+        <li class="active"><a href="#examples">Examples</a></li>
+        <li><a href="#options">Options</a></li>
         <li><a href="#">Documentation</a></li>
         <li><a href="../docs/FileUploadPlugin.html" target="_blank">Annotated Source</a></li>
-        <li><a href="../test/FileUploadPlugin.html" target="_blank">Tests</a></li>
+        <!--<li><a href="../test/FileUploadPlugin.html" target="_blank">Tests</a></li>-->
     </ul>
 </nav>
 
 <div id="main">
-    <h1>Ajax File Upload</h1>
+    <h1>AjaxFileUpload.js</h1>
 
 
-    <nav id="main-nav">
-        <ul>
-            <li class="active"><a href="#examples">Examples</a></li>
-            <li><a href="#options">Options</a></li>
-            <!--<li><a href="#example3"></a></li>-->
-        </ul>
-    </nav>
+    <!--<nav id="main-nav">-->
+        <!--<ul>-->
+            <!--<li class="active"><a href="#examples">Examples</a></li>-->
+            <!--<li><a href="#options">Options</a></li>-->
+            <!--&lt;!&ndash;<li><a href="#example3"></a></li>&ndash;&gt;-->
+        <!--</ul>-->
+    <!--</nav>-->
 
     <div id="sections">
 
@@ -427,21 +429,22 @@ nav ul {
                     new AjaxFileUpload(input, {
                         url: "upload.php",
                         onSuccess: function(data, formData, xhr) {
-                            console.log(data, formData, xhr);
+                            console.log(data, JSON.stringify(formData), xhr);
                             var response = JSON.stringify(data);
                             $(input).parents('.example').find('.response').show().find('pre').text(response);
                         }
                     });
                 </script>
                 <strong>HTML:</strong>
-            <pre class="brush: js; tab-size: 2;">&lt;form action=&quot;upload.php&quot; method=&quot;post&quot; enctype=&quot;multipart/form-data&quot; id=&quot;file-upload-form1&quot;&gt;
+            <pre class="brush: js; tab-size: 2;">&lt;form action=&quot;upload.php&quot; method=&quot;post&quot; enctype=&quot;multipart/form-data&quot;&gt;
     &lt;label for=&quot;file1&quot;&gt;Select a file: &lt;/label&gt;
-    &lt;input type=&quot;file&quot; name=&quot;file&quot; id=&quot;file1&quot;/&gt;
+    &lt;input type=&quot;file&quot; name=&quot;file&quot; id=&quot;<strong>file1</strong>&quot;/&gt;
 &lt;/form&gt;</pre>
                 <strong>JS:</strong>
-                <pre>&lt;script type=&quot;text/javascript&quot; charset=&quot;utf-8&quot;&gt;
-$(&#x27;#file1&#x27;).ajaxFileUpload({
-    url: &quot;upload.php&quot;
+                <pre>&lt;script type=&quot;text/javascript&quot;&gt;
+var input = document.getElementById(&quot;<strong>file1</strong>&quot;),
+ajaxFileUpload = new <strong>AjaxFileUpload</strong>(input, {
+    url: input.form.action
 });
 &lt;/script&gt;</pre>
                 <div class="response" style="display: none;">
@@ -484,10 +487,10 @@ $(&#x27;#file1&#x27;).ajaxFileUpload({
 </div>
 
 <script type="text/javascript">
-    $(".section").not($("nav#main-nav .active a").attr("href")).hide();
-    $("nav#main-nav a").click(function(e){
+    $(".section").not($("nav#top-bar .active a").attr("href")).hide();
+    $("nav#top-bar a").click(function(e){
         $(".section").hide();
-        $("nav#main-nav .active").removeClass("active");
+        $("nav#top-bar .active").removeClass("active");
         var target = $($(e.target).attr("href"));
         target.show();
         $(e.target).parents("li").addClass("active");

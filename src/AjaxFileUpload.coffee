@@ -77,21 +77,23 @@ class AjaxFileUpload
 
   handleAjaxStateChange: (event) =>
     return  unless @xhr.readyState is 4
-    data = JSON.parse @xhr.responseText
+    data = @xhr.responseText
+    if ~@xhr.getResponseHeader("content-type").indexOf("application/json")
+      data = JSON.parse data
     if @xhr.status is 200 or @xhr.status is 201
-      @settings.onSuccess.apply @, [data, event.target.files, @xhr]
+      @settings.onSuccess.apply @, [data, @input.files, @xhr]
     else
-      @settings.onError.apply @, [data, event.target.files, @xhr]
+      @settings.onError.apply @, [data, @input.files, @xhr]
     return
 
   handleAjaxProgressLoad: (event) =>
-    @settings.onProgressEnd.apply @, [event.target, event.target.files, @xhr]
+    @settings.onProgressEnd.apply @, [event, @input.files, @xhr]
 
   handleAjaxProgress: (event) =>
-    @settings.onProgress.apply @, [event.target, event.target.files, @xhr]
+    @settings.onProgress.apply @, [event, @input.files, @xhr]
 
   handleAjaxProgressStart: (event) =>
-    @settings.onProgressStart.apply @, [event.target, event.target.files, @xhr]
+    @settings.onProgressStart.apply @, [event, @input.files, @xhr]
 
   iframeUpload: =>
     @input.form.action = @settings.url
