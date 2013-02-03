@@ -1,4 +1,4 @@
-/*! Ajax File Upload Plugin - v0.1.0 - 2013-02-02
+/*! Ajax File Upload Plugin - v1.0.0 - 2013-02-02
 * https://github.com/jchild3rs/AjaxFileUpload
 * Copyright (c) 2013 James Childers; Licensed MIT */
 
