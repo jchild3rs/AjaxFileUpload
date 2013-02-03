@@ -2,6 +2,7 @@
 module.exports = function(grunt) {
 
   grunt.loadNpmTasks('grunt-coffee');
+//  grunt.loadNpmTasks('grunt-docco');
 
   // Project configuration.
   grunt.initConfig({
@@ -33,7 +34,7 @@ module.exports = function(grunt) {
     },
     watch: {
       files: '<config:lint.files>',
-      tasks: 'coffee lint qunit'
+      tasks: 'coffee lint qunit docco'
     },
     jshint: {
       options: {
@@ -65,13 +66,17 @@ module.exports = function(grunt) {
         }
       }
     },
-    uglify: {
-
+    uglify: {},
+    docco: {
+      debug: {
+        src: ['src/*.coffee'],
+        dest: 'docs/'
+      }
     }
   });
 
   // Default task.
 //  grunt.registerTask('default', 'lint qunit concat min');
-  grunt.registerTask('default', 'coffee lint qunit concat min');
+  grunt.registerTask('default', 'coffee lint qunit docco concat min');
 
 };

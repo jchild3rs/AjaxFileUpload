@@ -1,4 +1,4 @@
-/*! Ajax File Upload Plugin - v0.1.0 - 2013-01-31
+/*! Ajax File Upload Plugin - v0.1.0 - 2013-02-02
 * https://github.com/jchild3rs/AjaxFileUpload
 * Copyright (c) 2013 James Childers; Licensed MIT */
 
@@ -7,15 +7,14 @@
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   AjaxFileUpload = (function() {
-    var defaultSettings,
-      _this = this;
+    var ajaxUpload, defaultSettings, handleAjaxProgress, handleAjaxProgressLoad, handleAjaxProgressStart, handleAjaxStateChange, handleFileSelection, iframeUpload, utils;
 
     defaultSettings = {
       url: "",
       additionalData: {},
       autoUpload: true,
-      namespace: "",
-      sizeLimit: 1000000,
+      dataType: "json",
+      method: "post",
       onSuccess: function() {},
       onError: function() {},
       onFileSelect: function() {},
@@ -25,30 +24,14 @@
     };
 
     function AjaxFileUpload(input, options) {
+      var _this = this;
       this.input = input;
-      this.iframeUpload = __bind(this.iframeUpload, this);
-
-      this.handleAjaxProgressStart = __bind(this.handleAjaxProgressStart, this);
-
-      this.handleAjaxProgress = __bind(this.handleAjaxProgress, this);
-
-      this.handleAjaxProgressLoad = __bind(this.handleAjaxProgressLoad, this);
-
-      this.handleAjaxStateChange = __bind(this.handleAjaxStateChange, this);
-
-      this.ajaxUpload = __bind(this.ajaxUpload, this);
-
       this.upload = __bind(this.upload, this);
 
-      this.handleFileSelection = __bind(this.handleFileSelection, this);
-
-      if (this.input === null || this.utils.validate.inputType(this.input.type === false)) {
+      if (this.input === null || utils.validate.inputType(this.input.type === false)) {
         return;
       }
-      this.settings = this.utils.merge(defaultSettings, options);
-      if (this.settings.additionalData !== {}) {
-        this.settings.url += "?" + (this.utils.serialize(this.settings.additionalData));
-      }
+      this.settings = utils.merge(defaultSettings, options);
       if (this.settings.url === "") {
         this.settings.url = this.input.getAttribute("data-url");
       }
@@ -58,116 +41,155 @@
       if (this.settings.url === "") {
         return;
       }
-      this.utils.bindEvent(this.input, "change", this.handleFileSelection);
-      this.xhr = new XMLHttpRequest();
-      if (this.utils.has.formData) {
-        this.formData = new FormData();
+      if (this.settings.additionalData !== {}) {
+        this.settings.url += "?" + (utils.serialize(this.settings.additionalData));
       }
+      utils.bindEvent(this.input, "change", function(event) {
+        return handleFileSelection(event, _this);
+      });
     }
 
-    AjaxFileUpload.prototype.handleFileSelection = function(event) {
-      if (this.settings.autoUpload) {
-        this.upload();
-      }
-      this.settings.onFileSelect.apply(this, [event.target]);
-    };
-
     AjaxFileUpload.prototype.upload = function() {
-      if (this.utils.has.ajaxUpload) {
-        this.ajaxUpload();
+      if (utils.has.ajaxUpload) {
+        return ajaxUpload(this);
       } else {
-        this.iframeUpload();
+        return iframeUpload(this);
       }
     };
 
-    AjaxFileUpload.prototype.ajaxUpload = function() {
-      var file, _i, _len, _ref;
-      if (this.xhr.upload) {
-        this.xhr.upload.addEventListener("progress", this.handleAjaxProgress, false);
-        this.xhr.upload.addEventListener("loadstart", this.handleAjaxProgressStart, false);
-        this.xhr.upload.addEventListener("load", this.handleAjaxProgressLoad, false);
-      } else {
-        this.xhr.addEventListener("progress", this.handleAjaxProgress, false);
+    handleFileSelection = function(event, instance) {
+      var _ref;
+      if (instance.settings.autoUpload) {
+        instance.upload();
       }
-      this.xhr.addEventListener("readystatechange", this.handleAjaxStateChange, false);
-      _ref = this.input.files;
+      return (_ref = instance.settings).onFileSelect.apply(_ref, [event.target]);
+    };
+
+    ajaxUpload = function(instance) {
+      var file, _i, _len, _ref;
+      if (utils.has.ajaxUpload) {
+        instance.xhr = new XMLHttpRequest();
+      }
+      if (instance.xhr.upload) {
+        instance.xhr.upload.addEventListener("progress", function(event) {
+          return handleAjaxProgress(event, instance);
+        }, false);
+        instance.xhr.upload.addEventListener("loadstart", function(event) {
+          return handleAjaxProgressStart(event, instance);
+        }, false);
+        instance.xhr.upload.addEventListener("load", function(event) {
+          return handleAjaxProgressLoad(event, instance);
+        }, false);
+      } else {
+        instance.xhr.addEventListener("progress", function(event) {
+          return handleAjaxProgress(event, instance);
+        }, false);
+      }
+      instance.xhr.addEventListener("readystatechange", function(event) {
+        return handleAjaxStateChange(event, instance);
+      }, false);
+      if (utils.has.formData) {
+        instance.formData = new FormData();
+      }
+      _ref = instance.input.files;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         file = _ref[_i];
-        this.formData.append(file.name, file);
+        instance.formData.append(file.name, file);
       }
-      this.xhr.processData = false;
-      this.xhr.contentType = false;
-      this.xhr.open("POST", this.settings.url, true);
-      this.xhr.send(this.formData);
+      instance.xhr.open(instance.settings.method, instance.settings.url, true);
+      switch (instance.settings.dataType) {
+        case "json":
+          instance.xhr.setRequestHeader("Accept", "application/json");
+          break;
+        case "xml":
+          instance.xhr.setRequestHeader("Accept", "text/xml");
+          break;
+        default:
+          break;
+      }
+      instance.xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+      return instance.xhr.send(instance.formData);
     };
 
-    AjaxFileUpload.prototype.handleAjaxStateChange = function(event) {
-      var data;
-      if (this.xhr.readyState !== 4) {
+    handleAjaxStateChange = function(event, instance) {
+      var data, _ref, _ref1;
+      if (instance.xhr.readyState !== 4) {
         return;
       }
-      data = JSON.parse(this.xhr.responseText);
-      if (this.xhr.status === 200 || this.xhr.status === 201) {
-        this.settings.onSuccess.apply(this, [data, event.target.files, this.xhr]);
+      data = instance.xhr.responseText;
+      if (~instance.xhr.getResponseHeader("content-type").indexOf("application/json")) {
+        data = JSON.parse(data);
+      }
+      if (instance.xhr.status === 200 || instance.xhr.status === 201) {
+        (_ref = instance.settings).onSuccess.apply(_ref, [data, instance.input.files, instance.xhr]);
       } else {
-        this.settings.onError.apply(this, [data, event.target.files, this.xhr]);
+        (_ref1 = instance.settings).onError.apply(_ref1, [data, instance.input.files, instance.xhr]);
       }
     };
 
-    AjaxFileUpload.prototype.handleAjaxProgressLoad = function(event) {
-      return this.settings.onProgressEnd.apply(this, [event.target, event.target.files, this.xhr]);
+    handleAjaxProgressLoad = function(event, instance) {
+      var _ref;
+      return (_ref = instance.settings).onProgressEnd.apply(_ref, [event, instance.input.files, instance.xhr]);
     };
 
-    AjaxFileUpload.prototype.handleAjaxProgress = function(event) {
-      return this.settings.onProgress.apply(this, [event.target, event.target.files, this.xhr]);
+    handleAjaxProgress = function(event, instance) {
+      var _ref;
+      return (_ref = instance.settings).onProgress.apply(_ref, [event, instance.input.files, instance.xhr]);
     };
 
-    AjaxFileUpload.prototype.handleAjaxProgressStart = function(event) {
-      return this.settings.onProgressStart.apply(this, [event.target, event.target.files, this.xhr]);
+    handleAjaxProgressStart = function(event, instance) {
+      var _ref;
+      return (_ref = instance.settings).onProgressStart.apply(_ref, [event, instance.input.files, instance.xhr]);
     };
 
-    AjaxFileUpload.prototype.iframeUpload = function() {
-      var iframe,
-        _this = this;
-      this.input.form.action = this.settings.url;
-      this.input.form.target = "fu-iframe";
-      this.input.form.method = "post";
-      this.input.form.enctype = "multipart/form-data";
-      this.input.form.encoding = "multipart/form-data";
+    iframeUpload = function(instance) {
+      var iframe, _ref;
+      instance.input.form.action = instance.settings.url;
+      instance.input.form.target = "fu-iframe";
+      instance.input.form.method = instance.settings.method;
+      instance.input.form.enctype = "multipart/form-data";
+      instance.input.form.encoding = "multipart/form-data";
       iframe = document.getElementById("fu-iframe");
-      if (iframe === null) {
+      if (iframe == null) {
         iframe = document.createElement("iframe");
-        iframe.id = "fu-iframe";
       }
+      iframe.id = "fu-iframe";
       iframe.name = "fu-iframe";
       iframe.style.display = 'none';
-      this.utils.bindEvent(iframe, "load", function() {
-        var data, response;
+      utils.bindEvent(iframe, "load", function() {
+        var data, response, _ref, _ref1, _ref2;
+        iframe = window.frames["fu-iframe"];
+        if (iframe.document.body.children.length > 0 || iframe.document.body.children.length === 1) {
+          response = iframe.document.body.children[0].innerHTML;
+        } else {
+          response = iframe.document.body.innerHTML;
+        }
+        if (response != null) {
+          data = JSON.parse(response);
+          (_ref = instance.settings).onProgressEnd.apply(_ref, [data, instance.input.files, instance.xhr]);
+          return (_ref1 = instance.settings).onSuccess.apply(_ref1, [data, instance.input.value, instance.xhr]);
+        } else {
+          return (_ref2 = instance.settings).onError.apply(_ref2, [null, instance.input.value, instance.xhr]);
+        }
+      });
+      utils.bindEvent(iframe, "error", function() {
+        var data, response, _ref;
         if (window.frames["fu-iframe"].document.body.children.length > 0) {
           response = window.frames["fu-iframe"].document.body.children[0].innerHTML;
         } else {
           response = window.frames["fu-iframe"].document.body.innerHTML;
         }
         data = JSON.parse(response);
-        return _this.settings.onSuccess.apply(_this, [data, _this.input.value, _this.xhr]);
+        (_ref = instance.settings).onError.apply(_ref, [data, instance.input.value, instance.xhr]);
       });
-      this.utils.bindEvent(iframe, "error", function() {
-        var data, response;
-        if (window.frames["fu-iframe"].document.body.children.length > 0) {
-          response = window.frames["fu-iframe"].document.body.children[0].innerHTML;
-        } else {
-          response = window.frames["fu-iframe"].document.body.innerHTML;
-        }
-        data = JSON.parse(response);
-        _this.settings.onError.apply(_this, [data, _this.input.value, _this.xhr]);
-      });
-      if (document.getElementById("fu-iframe") === null) {
+      if (!document.getElementById("fu-iframe")) {
         document.body.appendChild(iframe);
       }
-      this.input.form.submit();
+      instance.input.form.submit();
+      return (_ref = instance.settings).onProgressStart.apply(_ref, [event, instance.input.files, instance.xhr]);
     };
 
-    AjaxFileUpload.prototype.utils = {
+    utils = {
       serialize: function(obj, prefix) {
         var k, p, str, v;
         str = [];
@@ -175,7 +197,7 @@
           v = obj[p];
           k = prefix ? prefix + "[" + p + "]" : p;
           if (typeof v === "object") {
-            str.push(AjaxFileUpload.utils.serialize(v, k));
+            str.push(utils.serialize(v, k));
           } else {
             str.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
           }
@@ -187,7 +209,7 @@
         for (p in obj2) {
           try {
             if (obj2[p].constructor === Object) {
-              obj1[p] = this.utils.merge(obj1[p], obj2[p]);
+              obj1[p] = utils.merge(obj1[p], obj2[p]);
             } else {
               obj1[p] = obj2[p];
             }
@@ -198,8 +220,8 @@
         return obj1;
       },
       has: {
-        formData: window.FormData,
-        fileAPI: window.File && window.FileReader && window.FileList && window.Blob,
+        formData: !!window.FormData,
+        fileAPI: !!window.File && !!window.FileReader && !!window.FileList && !!window.Blob,
         ajaxUpload: !!window.XMLHttpRequestUpload
       },
       bindEvent: function(element, eventName, callback, useCapture) {
@@ -214,7 +236,7 @@
       },
       triggerEvent: function(el, type) {
         if ((el[type] || false) && typeof el[type] === "function") {
-          el[type](el);
+          return el[type](el);
         }
       },
       validate: {
@@ -229,7 +251,7 @@
 
     return AjaxFileUpload;
 
-  }).call(this);
+  })();
 
   if (window.jQuery) {
     jQuery.ajaxFileUpload = AjaxFileUpload;
@@ -244,8 +266,8 @@
     define("ajaxFileUpload", [], function() {
       return AjaxFileUpload;
     });
-  } else {
-    window.AjaxFileUpload = AjaxFileUpload;
   }
+
+  window.AjaxFileUpload = AjaxFileUpload;
 
 }).call(this);
