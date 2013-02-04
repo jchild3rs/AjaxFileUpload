@@ -1,4 +1,4 @@
-/*! Ajax File Upload Plugin - v1.0.0 - 2013-02-02
+/*! Ajax File Upload Plugin - v1.0.0 - 2013-02-03
 * https://github.com/jchild3rs/AjaxFileUpload
 * Copyright (c) 2013 James Childers; Licensed MIT */
 
@@ -15,6 +15,9 @@
       autoUpload: true,
       dataType: "json",
       method: "post",
+      pathToSwf: "/dist/AjaxFileUpload.swf",
+      debug: true,
+      multiple: true,
       onSuccess: function() {},
       onError: function() {},
       onFileSelect: function() {},
@@ -67,9 +70,7 @@
 
     ajaxUpload = function(instance) {
       var file, _i, _len, _ref;
-      if (utils.has.ajaxUpload) {
-        instance.xhr = new XMLHttpRequest();
-      }
+      instance.xhr = new XMLHttpRequest();
       if (instance.xhr.upload) {
         instance.xhr.upload.addEventListener("progress", function(event) {
           return handleAjaxProgress(event, instance);
@@ -144,18 +145,22 @@
 
     iframeUpload = function(instance) {
       var iframe, _ref;
-      instance.input.form.action = instance.settings.url;
-      instance.input.form.target = "fu-iframe";
-      instance.input.form.method = instance.settings.method;
-      instance.input.form.enctype = "multipart/form-data";
-      instance.input.form.encoding = "multipart/form-data";
+      utils.attr(instance.input.form, {
+        action: instance.settings.url,
+        target: "fu-iframe",
+        method: instance.settings.method,
+        enctype: "multipart/form-data",
+        encoding: "multipart/form-data"
+      });
       iframe = document.getElementById("fu-iframe");
       if (iframe == null) {
         iframe = document.createElement("iframe");
       }
-      iframe.id = "fu-iframe";
-      iframe.name = "fu-iframe";
-      iframe.style.display = 'none';
+      utils.attr(iframe, {
+        id: "fu-iframe",
+        name: "fu-iframe",
+        style: "display:none"
+      });
       utils.bindEvent(iframe, "load", function() {
         var data, response, _ref, _ref1, _ref2;
         iframe = window.frames["fu-iframe"];
@@ -190,6 +195,77 @@
     };
 
     utils = {
+      embedSWF: function(settings, input) {
+        var attrs, embed, flashVars, key, objectEl, param, params, val;
+        console.log(input);
+        embed = document.getElementById("fu-embed");
+        if (!embed) {
+          embed = document.createElement("embed");
+        }
+        objectEl = document.getElementById("fu-object");
+        if (!objectEl) {
+          objectEl = document.createElement("object");
+        }
+        utils.attr(objectEl, {
+          classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000",
+          id: "fu-object",
+          align: "left"
+        });
+        flashVars = {
+          url: settings.url,
+          method: settings.method,
+          debug: settings.debug,
+          multiple: settings.multiple
+        };
+        params = {
+          movie: settings.pathToSwf,
+          quality: "low",
+          play: "true",
+          loop: "true",
+          wmode: "transparent",
+          scale: "noscale",
+          menu: "true",
+          devicefont: "false",
+          salign: "",
+          allowScriptAccess: "sameDomain"
+        };
+        for (key in params) {
+          val = params[key];
+          param = document.createElement("param");
+          utils.attr(param, {
+            name: key,
+            value: val
+          });
+          objectEl.appendChild(param);
+        }
+        attrs = {
+          src: settings.pathToSwf,
+          id: "fu-embed",
+          name: "fu-embed",
+          classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000",
+          type: "application/x-shockwave-flash",
+          pluginspage: "http://www.adobe.com/go/getflashplayer",
+          FlashVars: utils.serialize(flashVars),
+          width: input.offsetWidth,
+          height: input.offsetHeight,
+          style: "position: absolute"
+        };
+        utils.attr(embed, utils.merge(attrs, params));
+        objectEl.appendChild(embed);
+        input.parentNode.insertBefore(objectEl, input.nextSibling);
+      },
+      attr: function(element, attribs) {
+        var attr, val, _results;
+        _results = [];
+        for (attr in attribs) {
+          val = attribs[attr];
+          if (attr === "class") {
+            attr = "className";
+          }
+          _results.push(element.setAttribute(attr, val));
+        }
+        return _results;
+      },
       serialize: function(obj, prefix) {
         var k, p, str, v;
         str = [];

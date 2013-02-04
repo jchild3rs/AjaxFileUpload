@@ -8,7 +8,7 @@
 <title>jQuery File Upload Plugin</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-<script type="text/javascript" src="../src/AjaxFileUpload.js"></script>
+<script type="text/javascript" src="../dist/AjaxFileUpload-1.0.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <!--<script type="text/javascript" src="js/shCore.js"></script>-->
@@ -405,7 +405,12 @@ nav ul {
 <div id="main">
     <h1>AjaxFileUpload.js</h1>
 
-
+    <script type="text/javascript">
+        function sendToJavaScript(val)
+        {
+            alert(val);
+        }
+    </script>
     <!--<nav id="main-nav">-->
         <!--<ul>-->
             <!--<li class="active"><a href="#examples">Examples</a></li>-->
