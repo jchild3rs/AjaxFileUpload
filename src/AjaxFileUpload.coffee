@@ -2,8 +2,10 @@
 # (written in CoffeeScript) for handling ajax file uploads.
 # IE9 and below require use of an iframe hack.
 # ([See here](http://ajaxpatterns.org/IFrame_Call))
-#window.ajaxFileUploadFlashProxy = (callbackName) ->
-#  console.log "flash inited", data
+window.AjaxFileUploadFlashProxy = (instanceId, method, args) ->
+  console.log instanceId, method, args
+  instance = window.AjaxFileUpload.instances[instanceId]
+  instance.settings[method].apply instance, args
 
 class AjaxFileUpload
 
@@ -35,7 +37,7 @@ class AjaxFileUpload
     pathToSwf: "/dist/AjaxFileUpload.swf"
 
     debug: true
-    multiple: true
+    multiple: false
 
     # **{Callback}** onSuccess(data, files, xhr)
     # Fires on successful ajax response.
@@ -43,6 +45,7 @@ class AjaxFileUpload
     onSuccess: ->
 
     # **{Callback}** onError(data, files, xhr)
+    # todo, update params pass "message"
     # Fires when there is an error.
     onError: ->
 
@@ -67,12 +70,16 @@ class AjaxFileUpload
   constructor: (@input, options) ->
 
     # Back out if provided input is null or isnt file
-    return if @input is null or utils.validate.inputType @input.type is false
+    return if @input is null or @utils.validate.inputType @input.type is false
 
     # Merge provided settings w/ default
-    @settings = utils.merge defaultSettings, options
+    @settings = @utils.merge defaultSettings, options
 
-#    utils.embedSWF @settings, @input
+    @settings.multiple = true if @input.multiple
+    # set unique instance id (mainly for flash communication)
+    @.instanceId = @input.id
+
+#    @embedSWF()
 
     # If url not defined, check for url in data attribute "data-url",
     if @settings.url is ""
@@ -85,99 +92,170 @@ class AjaxFileUpload
 
     # Setup additional post data if present
     if @settings.additionalData isnt {}
-      @settings.url += "?#{utils.serialize(@settings.additionalData)}"
+      @settings.url += "?#{@utils.serialize(@settings.additionalData)}"
 
     # Bind change event to input
-    utils.bindEvent @input, "change", (event) => handleFileSelection(event, @)
+    @utils.bindEvent @input, "change", (event) => @handleFileSelection(event, @)
+
+    window.AjaxFileUpload.instances = AjaxFileUpload.instances or []
+    window.AjaxFileUpload.instances[@instanceId] = @
+
 
   # **upload()** Determines based on settings whether to use XHR or iframe and makes it happen.
-  upload: => if utils.has.ajaxUpload then ajaxUpload(@) else iframeUpload(@)
+  upload: => if @utils.has.ajaxUpload then @ajaxUpload(@) else @iframeUpload(@)
 
-  # **handleFileSelection(event, instance)** Change event handler.
-  handleFileSelection = (event, instance) ->
+  embedSWF: =>
+
+    settings = @settings
+    input = @input
+
+    # create reference to embed
+    embed = document.getElementById "fu-embed"
+    embed = document.createElement "embed" unless embed
+
+    objectEl = document.getElementById "fu-object"
+    objectEl = document.createElement "object" unless objectEl
+    @utils.attr objectEl,
+               classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+               id: "fu-object"
+               align: "left"
+
+    flashVars =
+      id: @instanceId
+      url: settings.url
+      method: settings.method
+      debug: settings.debug
+      multiple: settings.multiple
+
+    params =
+      movie: settings.pathToSwf
+      quality: "low"
+      play: "true"
+      loop: "true"
+      wmode: "transparent"
+      scale: "noscale"
+      menu: "true"
+      devicefont: "false"
+      salign: ""
+      allowScriptAccess: "sameDomain"
+      flashvars: @utils.serialize flashVars
+
+    for key, val of params
+      param = document.createElement "param"
+      @utils.attr param,
+                 name: key
+                 value: val
+      objectEl.appendChild param
+
+    attrs =
+      src: settings.pathToSwf
+      id: "fu-embed"
+      name: "fu-embed"
+      classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
+      type: "application/x-shockwave-flash"
+      pluginspage: "http://www.adobe.com/go/getflashplayer"
+      FlashVars: @utils.serialize flashVars
+      width: input.offsetWidth + 5
+      height: input.offsetHeight + 5
+      style: "position: absolute"
+    #        style: "position: fixed; top: 0; left: 0;"
+    #        style: "position: absolute; top: -999em; left: -999em;"
+    #        width: 0
+    #        height: 0
+
+    @utils.attr embed, @utils.merge(attrs, params)
+
+    objectEl.appendChild embed
+    input.parentNode.insertBefore objectEl, input.nextSibling
+    #      document.body.appendChild swf
+    return
+
+  # **handleFileSelection(event)** Change event handler.
+  handleFileSelection: (event) =>
 
     # If autoUpload is set, triggers the upload.
-    instance.upload() if instance.settings.autoUpload
+    @upload() if @settings.autoUpload
 
     # Trigger onFileSelect callback.
-    instance.settings.onFileSelect [event.target]...
+    @settings.onFileSelect [event.target]...
 
   # **ajaxUpload(instance)** Handles ajax upload.
-  ajaxUpload = (instance) ->
+  ajaxUpload: =>
 
     # Create XHR object
-    instance.xhr = new XMLHttpRequest()
+    @xhr = new XMLHttpRequest()
 
     # Bind XHR events to local callback proxies
-    if instance.xhr.upload
-      instance.xhr.upload.addEventListener "progress", (event) ->
-        handleAjaxProgress(event, instance)
+    if @xhr.upload
+      @xhr.upload.addEventListener "progress", (event) =>
+        @handleAjaxProgress(event)
       , false
-      instance.xhr.upload.addEventListener "loadstart", (event) ->
-        handleAjaxProgressStart(event, instance)
+      @xhr.upload.addEventListener "loadstart", (event) =>
+        @handleAjaxProgressStart(event)
       , false
-      instance.xhr.upload.addEventListener "load", (event) ->
-        handleAjaxProgressLoad(event, instance)
+      @xhr.upload.addEventListener "load", (event) =>
+        @handleAjaxProgressLoad(event)
       , false
     else
-      instance.xhr.addEventListener "progress", (event) ->
-        handleAjaxProgress(event, instance)
+      @xhr.addEventListener "progress", (event) =>
+        @handleAjaxProgress(event)
       , false
-    instance.xhr.addEventListener "readystatechange", (event) ->
-      handleAjaxStateChange(event, instance)
+    @xhr.addEventListener "readystatechange", (event) =>
+      @handleAjaxStateChange(event)
     , false
 
     # Create formData object
-    instance.formData = new FormData() if utils.has.formData
+    @formData = new FormData() if @utils.has.formData
     # todo: handle no FormData situation.
 
     # Recursively store file(s) data in formData object
-    instance.formData.append file.name, file for file in instance.input.files
+    @formData.append file.name, file for file in @input.files
+
 
     # Specify request settings
-    instance.xhr.open instance.settings.method, instance.settings.url, true
+    @xhr.open @settings.method, @settings.url, true
 
     # Set appropriate Accept request header.
-    switch instance.settings.dataType
+    switch @settings.dataType
       when "json"
-        instance.xhr.setRequestHeader("Accept", "application/json")
+        @xhr.setRequestHeader("Accept", "application/json")
         break
       when "xml"
-        instance.xhr.setRequestHeader("Accept", "text/xml")
+        @xhr.setRequestHeader("Accept", "text/xml")
         break
       else break
 
     # Set header telling the server that this is an XHR request.
-    instance.xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest")
+    @xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest")
 
     # Send request w/ formData to server.
-    instance.xhr.send instance.formData
+    @xhr.send @formData
 
-  handleAjaxStateChange = (event, instance) ->
-    return  unless instance.xhr.readyState is 4
-    data = instance.xhr.responseText
-    if ~instance.xhr.getResponseHeader("content-type").indexOf("application/json")
+  handleAjaxStateChange: (event) =>
+    return  unless @xhr.readyState is 4
+    data = @xhr.responseText
+    if ~@xhr.getResponseHeader("content-type").indexOf("application/json")
       data = JSON.parse data
-    if instance.xhr.status is 200 or instance.xhr.status is 201
-      instance.settings.onSuccess [data, instance.input.files, instance.xhr]...
+    if @xhr.status is 200 or @xhr.status is 201
+      @settings.onSuccess [data, @input.files, @xhr]...
     else
-      instance.settings.onError [data, instance.input.files, instance.xhr]...
+      @settings.onError [data, @input.files, @xhr]...
     return
 
-  handleAjaxProgressLoad = (event, instance) ->
-    instance.settings.onProgressEnd [event, instance.input.files, instance.xhr]...
+  handleAjaxProgressLoad: (event) =>
+    @settings.onProgressEnd [event, @input.files, @xhr]...
 
-  handleAjaxProgress= (event, instance) ->
-    instance.settings.onProgress [event, instance.input.files, instance.xhr]...
+  handleAjaxProgress: (event) =>
+    @settings.onProgress [event, @input.files, @xhr]...
 
-  handleAjaxProgressStart = (event, instance) ->
-    instance.settings.onProgressStart [event, instance.input.files, instance.xhr]...
+  handleAjaxProgressStart: (event) =>
+    @settings.onProgressStart [event, @input.files, @xhr]...
 
-  iframeUpload = (instance) ->
-    utils.attr instance.input.form,
-      action: instance.settings.url
+  iframeUpload: (instance) =>
+    @utils.attr @input.form,
+      action: @settings.url
       target: "fu-iframe"
-      method: instance.settings.method
+      method: @settings.method
       enctype: "multipart/form-data"
       encoding: "multipart/form-data"
 
@@ -188,12 +266,12 @@ class AjaxFileUpload
     iframe ?= document.createElement "iframe"
 
     # set/override mandatory attributes
-    utils.attr iframe,
+    @utils.attr iframe,
       id: "fu-iframe"
       name: "fu-iframe"
       style: "display:none"
 
-    utils.bindEvent iframe, "load", ->
+    @utils.bindEvent iframe, "load", ->
       iframe = window.frames["fu-iframe"]
       # if text/plain content type is used, most browsers will wrap response in <pre> tag
       if iframe.document.body.children.length > 0 or iframe.document.body.children.length is 1
@@ -205,91 +283,28 @@ class AjaxFileUpload
 
       if response?
         data = JSON.parse response
-        instance.settings.onProgressEnd [data, instance.input.files, instance.xhr]...
-        instance.settings.onSuccess [data, instance.input.value, instance.xhr]...
+        @settings.onProgressEnd [data, @input.files, @xhr]...
+        @settings.onSuccess [data, @input.value, @xhr]...
       else
-        instance.settings.onError [null, instance.input.value, instance.xhr]...
+        @settings.onError [null, @input.value, @xhr]...
 
-    utils.bindEvent iframe, "error", ->
+    @utils.bindEvent iframe, "error", =>
       if window.frames["fu-iframe"].document.body.children.length > 0
         response = window.frames["fu-iframe"].document.body.children[0].innerHTML
       else
         response = window.frames["fu-iframe"].document.body.innerHTML
       data = JSON.parse response
-      instance.settings.onError [data, instance.input.value, instance.xhr]...
+      @settings.onError [data, @input.value, @xhr]...
       return
 
     unless document.getElementById("fu-iframe")
       document.body.appendChild iframe
 
     # send request via form submit
-    instance.input.form.submit()
-    instance.settings.onProgressStart [event, instance.input.files, instance.xhr]...
+    @input.form.submit()
+    @settings.onProgressStart [event, @input.files, @xhr]...
 
-  utils =
-
-    embedSWF: (settings, input) ->
-      console.log input
-
-      # create reference to embed
-      embed = document.getElementById "fu-embed"
-      embed = document.createElement "embed" unless embed
-
-
-      objectEl = document.getElementById "fu-object"
-      objectEl = document.createElement "object" unless objectEl
-      utils.attr objectEl,
-        classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
-        id: "fu-object"
-        align: "left"
-
-      flashVars =
-        url: settings.url
-        method: settings.method
-        debug: settings.debug
-        multiple: settings.multiple
-
-      params =
-        movie: settings.pathToSwf
-        quality: "low"
-        play: "true"
-        loop: "true"
-        wmode: "transparent"
-        scale: "noscale"
-        menu: "true"
-        devicefont: "false"
-        salign: ""
-        allowScriptAccess: "sameDomain"
-
-      for key, val of params
-        param = document.createElement "param"
-        utils.attr param,
-          name: key
-          value: val
-        objectEl.appendChild param
-
-      attrs =
-        src: settings.pathToSwf
-        id: "fu-embed"
-        name: "fu-embed"
-        classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
-        type: "application/x-shockwave-flash"
-        pluginspage: "http://www.adobe.com/go/getflashplayer"
-        FlashVars: utils.serialize flashVars
-        width: input.offsetWidth
-        height: input.offsetHeight
-        style: "position: absolute"
-#        style: "position: fixed; top: 0; left: 0;"
-#        style: "position: absolute; top: -999em; left: -999em;"
-#        width: 0
-#        height: 0
-
-      utils.attr embed, utils.merge(attrs, params)
-
-      objectEl.appendChild embed
-      input.parentNode.insertBefore objectEl, input.nextSibling
-#      document.body.appendChild swf
-      return
+  utils:
 
     attr: (element, attribs) ->
       for attr, val of attribs
@@ -301,7 +316,7 @@ class AjaxFileUpload
       for p, v of obj
         k = if prefix then prefix + "[" + p + "]" else p
         if typeof v == "object"
-          str.push utils.serialize(v, k)
+          str.push @utils.serialize(v, k)
         else
           str.push encodeURIComponent(k) + "=" + encodeURIComponent(v)
       str.join "&"
@@ -310,7 +325,7 @@ class AjaxFileUpload
       for p of obj2
         try
           if obj2[p].constructor is Object
-            obj1[p] = utils.merge obj1[p], obj2[p]
+            obj1[p] = @utils.merge obj1[p], obj2[p]
           else obj1[p] = obj2[p]
         catch e
           obj1[p] = obj2[p]
@@ -347,4 +362,4 @@ if window.jQuery
 if typeof define is "function" and define.amd
   define "ajaxFileUpload", [], -> return AjaxFileUpload
 
-window.AjaxFileUpload = AjaxFileUpload;
+window.AjaxFileUpload = AjaxFileUpload

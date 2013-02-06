@@ -8,7 +8,7 @@
 <title>jQuery File Upload Plugin</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-<script type="text/javascript" src="../dist/AjaxFileUpload-1.0.0.min.js"></script>
+<script type="text/javascript" src="../dist/AjaxFileUpload-1.0.0.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <!--<script type="text/javascript" src="js/shCore.js"></script>-->
@@ -426,17 +426,17 @@ nav ul {
                 <h2>Example 1: Simple ajax auto-upload upon selection.</h2>
                 <form action="upload.php" method="post" enctype="multipart/form-data" id="file-upload-form1">
                     <label for="file1">Select a file: </label>
-                    <input type="file" name="file" id="file1"/>
+                    <input type="file" name="file" id="file1" multiple/>
                 </form>
                 <script type="text/javascript" charset="utf-8">
                     //            $('#file1').ajaxFileUpload({
                     var input = document.getElementById("file1");
                     new AjaxFileUpload(input, {
-                        url: "upload.php",
+                        url: "http://fileupload.jchilders.com/demo/upload.php",
                         onSuccess: function(data, formData, xhr) {
                             console.log(data, JSON.stringify(formData), xhr);
                             var response = JSON.stringify(data);
-                            $(input).parents('.example').find('.response').show().find('pre').text(response);
+                            $(input).parents('.example').find('.response').show().find('pre').append("<span>" + response + "</span>");
                         }
                     });
                 </script>

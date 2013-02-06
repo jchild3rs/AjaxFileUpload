@@ -2,8 +2,15 @@
   var AjaxFileUpload,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
+  window.AjaxFileUploadFlashProxy = function(instanceId, method, args) {
+    var instance;
+    console.log(instanceId, method, args);
+    instance = window.AjaxFileUpload.instances[instanceId];
+    return instance.settings[method].apply(instance, args);
+  };
+
   AjaxFileUpload = (function() {
-    var ajaxUpload, defaultSettings, handleAjaxProgress, handleAjaxProgressLoad, handleAjaxProgressStart, handleAjaxStateChange, handleFileSelection, iframeUpload, utils;
+    var defaultSettings;
 
     defaultSettings = {
       url: "",
@@ -13,7 +20,7 @@
       method: "post",
       pathToSwf: "/dist/AjaxFileUpload.swf",
       debug: true,
-      multiple: true,
+      multiple: false,
       onSuccess: function() {},
       onError: function() {},
       onFileSelect: function() {},
@@ -25,12 +32,32 @@
     function AjaxFileUpload(input, options) {
       var _this = this;
       this.input = input;
+      this.iframeUpload = __bind(this.iframeUpload, this);
+
+      this.handleAjaxProgressStart = __bind(this.handleAjaxProgressStart, this);
+
+      this.handleAjaxProgress = __bind(this.handleAjaxProgress, this);
+
+      this.handleAjaxProgressLoad = __bind(this.handleAjaxProgressLoad, this);
+
+      this.handleAjaxStateChange = __bind(this.handleAjaxStateChange, this);
+
+      this.ajaxUpload = __bind(this.ajaxUpload, this);
+
+      this.handleFileSelection = __bind(this.handleFileSelection, this);
+
+      this.embedSWF = __bind(this.embedSWF, this);
+
       this.upload = __bind(this.upload, this);
 
-      if (this.input === null || utils.validate.inputType(this.input.type === false)) {
+      if (this.input === null || this.utils.validate.inputType(this.input.type === false)) {
         return;
       }
-      this.settings = utils.merge(defaultSettings, options);
+      this.settings = this.utils.merge(defaultSettings, options);
+      if (this.input.multiple) {
+        this.settings.multiple = true;
+      }
+      this.instanceId = this.input.id;
       if (this.settings.url === "") {
         this.settings.url = this.input.getAttribute("data-url");
       }
@@ -41,110 +68,177 @@
         return;
       }
       if (this.settings.additionalData !== {}) {
-        this.settings.url += "?" + (utils.serialize(this.settings.additionalData));
+        this.settings.url += "?" + (this.utils.serialize(this.settings.additionalData));
       }
-      utils.bindEvent(this.input, "change", function(event) {
-        return handleFileSelection(event, _this);
+      this.utils.bindEvent(this.input, "change", function(event) {
+        return _this.handleFileSelection(event, _this);
       });
+      window.AjaxFileUpload.instances = AjaxFileUpload.instances || [];
+      window.AjaxFileUpload.instances[this.instanceId] = this;
     }
 
     AjaxFileUpload.prototype.upload = function() {
-      if (utils.has.ajaxUpload) {
-        return ajaxUpload(this);
+      if (this.utils.has.ajaxUpload) {
+        return this.ajaxUpload(this);
       } else {
-        return iframeUpload(this);
+        return this.iframeUpload(this);
       }
     };
 
-    handleFileSelection = function(event, instance) {
+    AjaxFileUpload.prototype.embedSWF = function() {
+      var attrs, embed, flashVars, input, key, objectEl, param, params, settings, val;
+      settings = this.settings;
+      input = this.input;
+      embed = document.getElementById("fu-embed");
+      if (!embed) {
+        embed = document.createElement("embed");
+      }
+      objectEl = document.getElementById("fu-object");
+      if (!objectEl) {
+        objectEl = document.createElement("object");
+      }
+      this.utils.attr(objectEl, {
+        classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000",
+        id: "fu-object",
+        align: "left"
+      });
+      flashVars = {
+        id: this.instanceId,
+        url: settings.url,
+        method: settings.method,
+        debug: settings.debug,
+        multiple: settings.multiple
+      };
+      params = {
+        movie: settings.pathToSwf,
+        quality: "low",
+        play: "true",
+        loop: "true",
+        wmode: "transparent",
+        scale: "noscale",
+        menu: "true",
+        devicefont: "false",
+        salign: "",
+        allowScriptAccess: "sameDomain",
+        flashvars: this.utils.serialize(flashVars)
+      };
+      for (key in params) {
+        val = params[key];
+        param = document.createElement("param");
+        this.utils.attr(param, {
+          name: key,
+          value: val
+        });
+        objectEl.appendChild(param);
+      }
+      attrs = {
+        src: settings.pathToSwf,
+        id: "fu-embed",
+        name: "fu-embed",
+        classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000",
+        type: "application/x-shockwave-flash",
+        pluginspage: "http://www.adobe.com/go/getflashplayer",
+        FlashVars: this.utils.serialize(flashVars),
+        width: input.offsetWidth + 5,
+        height: input.offsetHeight + 5,
+        style: "position: absolute"
+      };
+      this.utils.attr(embed, this.utils.merge(attrs, params));
+      objectEl.appendChild(embed);
+      input.parentNode.insertBefore(objectEl, input.nextSibling);
+    };
+
+    AjaxFileUpload.prototype.handleFileSelection = function(event) {
       var _ref;
-      if (instance.settings.autoUpload) {
-        instance.upload();
+      if (this.settings.autoUpload) {
+        this.upload();
       }
-      return (_ref = instance.settings).onFileSelect.apply(_ref, [event.target]);
+      return (_ref = this.settings).onFileSelect.apply(_ref, [event.target]);
     };
 
-    ajaxUpload = function(instance) {
-      var file, _i, _len, _ref;
-      instance.xhr = new XMLHttpRequest();
-      if (instance.xhr.upload) {
-        instance.xhr.upload.addEventListener("progress", function(event) {
-          return handleAjaxProgress(event, instance);
+    AjaxFileUpload.prototype.ajaxUpload = function() {
+      var file, _i, _len, _ref,
+        _this = this;
+      this.xhr = new XMLHttpRequest();
+      if (this.xhr.upload) {
+        this.xhr.upload.addEventListener("progress", function(event) {
+          return _this.handleAjaxProgress(event);
         }, false);
-        instance.xhr.upload.addEventListener("loadstart", function(event) {
-          return handleAjaxProgressStart(event, instance);
+        this.xhr.upload.addEventListener("loadstart", function(event) {
+          return _this.handleAjaxProgressStart(event);
         }, false);
-        instance.xhr.upload.addEventListener("load", function(event) {
-          return handleAjaxProgressLoad(event, instance);
+        this.xhr.upload.addEventListener("load", function(event) {
+          return _this.handleAjaxProgressLoad(event);
         }, false);
       } else {
-        instance.xhr.addEventListener("progress", function(event) {
-          return handleAjaxProgress(event, instance);
+        this.xhr.addEventListener("progress", function(event) {
+          return _this.handleAjaxProgress(event);
         }, false);
       }
-      instance.xhr.addEventListener("readystatechange", function(event) {
-        return handleAjaxStateChange(event, instance);
+      this.xhr.addEventListener("readystatechange", function(event) {
+        return _this.handleAjaxStateChange(event);
       }, false);
-      if (utils.has.formData) {
-        instance.formData = new FormData();
+      if (this.utils.has.formData) {
+        this.formData = new FormData();
       }
-      _ref = instance.input.files;
+      _ref = this.input.files;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         file = _ref[_i];
-        instance.formData.append(file.name, file);
+        this.formData.append(file.name, file);
       }
-      instance.xhr.open(instance.settings.method, instance.settings.url, true);
-      switch (instance.settings.dataType) {
+      this.xhr.open(this.settings.method, this.settings.url, true);
+      switch (this.settings.dataType) {
         case "json":
-          instance.xhr.setRequestHeader("Accept", "application/json");
+          this.xhr.setRequestHeader("Accept", "application/json");
           break;
         case "xml":
-          instance.xhr.setRequestHeader("Accept", "text/xml");
+          this.xhr.setRequestHeader("Accept", "text/xml");
           break;
         default:
           break;
       }
-      instance.xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-      return instance.xhr.send(instance.formData);
+      this.xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+      return this.xhr.send(this.formData);
     };
 
-    handleAjaxStateChange = function(event, instance) {
+    AjaxFileUpload.prototype.handleAjaxStateChange = function(event) {
       var data, _ref, _ref1;
-      if (instance.xhr.readyState !== 4) {
+      if (this.xhr.readyState !== 4) {
         return;
       }
-      data = instance.xhr.responseText;
-      if (~instance.xhr.getResponseHeader("content-type").indexOf("application/json")) {
+      data = this.xhr.responseText;
+      if (~this.xhr.getResponseHeader("content-type").indexOf("application/json")) {
         data = JSON.parse(data);
       }
-      if (instance.xhr.status === 200 || instance.xhr.status === 201) {
-        (_ref = instance.settings).onSuccess.apply(_ref, [data, instance.input.files, instance.xhr]);
+      if (this.xhr.status === 200 || this.xhr.status === 201) {
+        (_ref = this.settings).onSuccess.apply(_ref, [data, this.input.files, this.xhr]);
       } else {
-        (_ref1 = instance.settings).onError.apply(_ref1, [data, instance.input.files, instance.xhr]);
+        (_ref1 = this.settings).onError.apply(_ref1, [data, this.input.files, this.xhr]);
       }
     };
 
-    handleAjaxProgressLoad = function(event, instance) {
+    AjaxFileUpload.prototype.handleAjaxProgressLoad = function(event) {
       var _ref;
-      return (_ref = instance.settings).onProgressEnd.apply(_ref, [event, instance.input.files, instance.xhr]);
+      return (_ref = this.settings).onProgressEnd.apply(_ref, [event, this.input.files, this.xhr]);
     };
 
-    handleAjaxProgress = function(event, instance) {
+    AjaxFileUpload.prototype.handleAjaxProgress = function(event) {
       var _ref;
-      return (_ref = instance.settings).onProgress.apply(_ref, [event, instance.input.files, instance.xhr]);
+      return (_ref = this.settings).onProgress.apply(_ref, [event, this.input.files, this.xhr]);
     };
 
-    handleAjaxProgressStart = function(event, instance) {
+    AjaxFileUpload.prototype.handleAjaxProgressStart = function(event) {
       var _ref;
-      return (_ref = instance.settings).onProgressStart.apply(_ref, [event, instance.input.files, instance.xhr]);
+      return (_ref = this.settings).onProgressStart.apply(_ref, [event, this.input.files, this.xhr]);
     };
 
-    iframeUpload = function(instance) {
-      var iframe, _ref;
-      utils.attr(instance.input.form, {
-        action: instance.settings.url,
+    AjaxFileUpload.prototype.iframeUpload = function(instance) {
+      var iframe, _ref,
+        _this = this;
+      this.utils.attr(this.input.form, {
+        action: this.settings.url,
         target: "fu-iframe",
-        method: instance.settings.method,
+        method: this.settings.method,
         enctype: "multipart/form-data",
         encoding: "multipart/form-data"
       });
@@ -152,12 +246,12 @@
       if (iframe == null) {
         iframe = document.createElement("iframe");
       }
-      utils.attr(iframe, {
+      this.utils.attr(iframe, {
         id: "fu-iframe",
         name: "fu-iframe",
         style: "display:none"
       });
-      utils.bindEvent(iframe, "load", function() {
+      this.utils.bindEvent(iframe, "load", function() {
         var data, response, _ref, _ref1, _ref2;
         iframe = window.frames["fu-iframe"];
         if (iframe.document.body.children.length > 0 || iframe.document.body.children.length === 1) {
@@ -167,13 +261,13 @@
         }
         if (response != null) {
           data = JSON.parse(response);
-          (_ref = instance.settings).onProgressEnd.apply(_ref, [data, instance.input.files, instance.xhr]);
-          return (_ref1 = instance.settings).onSuccess.apply(_ref1, [data, instance.input.value, instance.xhr]);
+          (_ref = this.settings).onProgressEnd.apply(_ref, [data, this.input.files, this.xhr]);
+          return (_ref1 = this.settings).onSuccess.apply(_ref1, [data, this.input.value, this.xhr]);
         } else {
-          return (_ref2 = instance.settings).onError.apply(_ref2, [null, instance.input.value, instance.xhr]);
+          return (_ref2 = this.settings).onError.apply(_ref2, [null, this.input.value, this.xhr]);
         }
       });
-      utils.bindEvent(iframe, "error", function() {
+      this.utils.bindEvent(iframe, "error", function() {
         var data, response, _ref;
         if (window.frames["fu-iframe"].document.body.children.length > 0) {
           response = window.frames["fu-iframe"].document.body.children[0].innerHTML;
@@ -181,75 +275,16 @@
           response = window.frames["fu-iframe"].document.body.innerHTML;
         }
         data = JSON.parse(response);
-        (_ref = instance.settings).onError.apply(_ref, [data, instance.input.value, instance.xhr]);
+        (_ref = _this.settings).onError.apply(_ref, [data, _this.input.value, _this.xhr]);
       });
       if (!document.getElementById("fu-iframe")) {
         document.body.appendChild(iframe);
       }
-      instance.input.form.submit();
-      return (_ref = instance.settings).onProgressStart.apply(_ref, [event, instance.input.files, instance.xhr]);
+      this.input.form.submit();
+      return (_ref = this.settings).onProgressStart.apply(_ref, [event, this.input.files, this.xhr]);
     };
 
-    utils = {
-      embedSWF: function(settings, input) {
-        var attrs, embed, flashVars, key, objectEl, param, params, val;
-        console.log(input);
-        embed = document.getElementById("fu-embed");
-        if (!embed) {
-          embed = document.createElement("embed");
-        }
-        objectEl = document.getElementById("fu-object");
-        if (!objectEl) {
-          objectEl = document.createElement("object");
-        }
-        utils.attr(objectEl, {
-          classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000",
-          id: "fu-object",
-          align: "left"
-        });
-        flashVars = {
-          url: settings.url,
-          method: settings.method,
-          debug: settings.debug,
-          multiple: settings.multiple
-        };
-        params = {
-          movie: settings.pathToSwf,
-          quality: "low",
-          play: "true",
-          loop: "true",
-          wmode: "transparent",
-          scale: "noscale",
-          menu: "true",
-          devicefont: "false",
-          salign: "",
-          allowScriptAccess: "sameDomain"
-        };
-        for (key in params) {
-          val = params[key];
-          param = document.createElement("param");
-          utils.attr(param, {
-            name: key,
-            value: val
-          });
-          objectEl.appendChild(param);
-        }
-        attrs = {
-          src: settings.pathToSwf,
-          id: "fu-embed",
-          name: "fu-embed",
-          classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000",
-          type: "application/x-shockwave-flash",
-          pluginspage: "http://www.adobe.com/go/getflashplayer",
-          FlashVars: utils.serialize(flashVars),
-          width: input.offsetWidth,
-          height: input.offsetHeight,
-          style: "position: absolute"
-        };
-        utils.attr(embed, utils.merge(attrs, params));
-        objectEl.appendChild(embed);
-        input.parentNode.insertBefore(objectEl, input.nextSibling);
-      },
+    AjaxFileUpload.prototype.utils = {
       attr: function(element, attribs) {
         var attr, val, _results;
         _results = [];
@@ -269,7 +304,7 @@
           v = obj[p];
           k = prefix ? prefix + "[" + p + "]" : p;
           if (typeof v === "object") {
-            str.push(utils.serialize(v, k));
+            str.push(this.utils.serialize(v, k));
           } else {
             str.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
           }
@@ -281,7 +316,7 @@
         for (p in obj2) {
           try {
             if (obj2[p].constructor === Object) {
-              obj1[p] = utils.merge(obj1[p], obj2[p]);
+              obj1[p] = this.utils.merge(obj1[p], obj2[p]);
             } else {
               obj1[p] = obj2[p];
             }
