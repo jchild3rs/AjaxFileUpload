@@ -5,22 +5,23 @@
 
 class AjaxFileUpload
 
-  # ## Options
-  # Default settings that get deep merged with
-  # user provided settings.
+# ## Options
+# Default settings that get deep merged with
+# user provided settings.
   defaultSettings =
 
-    # **{String}** Request mapping to back-end service
-    # that handles the upload and returns a response.
+  # **{String}** Request mapping to back-end service
+  # that handles the upload and returns a response.
     url: ""
 
     # **{Object}** Additional data you would like to
     # pass along with the request.
-    additionalData: {}
+    additionalData:
+      {}
 
     # **{Boolean}** If true, the upload will happen
     # upon file selection.
-    autoUpload: true
+    autoUpload: false
 
     # **{String}** The data type you are using to communicate
     # with the server. Currently *"json"* and *"xml"* are supported.
@@ -31,7 +32,13 @@ class AjaxFileUpload
     method: "post"
 
     # **{String}** Path to SWF that is required for IE9 and below
-    pathToSwf: "/dist/AjaxFileUpload.swf"
+    pathToSwf: "AjaxFileUpload.swf"
+
+    showCustomInput: false
+    buttonEmptyText: "Select"
+    buttonSelectedText: "Upload"
+
+    showProgressBar: false
 
     debug: false
 
@@ -84,6 +91,7 @@ class AjaxFileUpload
       @input.multiple = true
       @settings.multiple = true
 
+
     # If url not defined, check for url in data attribute "data-url",
     if @settings.url is ""
       @settings.url = @input.getAttribute "data-url"
@@ -96,58 +104,78 @@ class AjaxFileUpload
 
     # Setup additional post data if present
     if @settings.additionalData isnt {}
-      @settings.url += "?#{utils.serialize(@settings.additionalData)}"
+      @settings.url += "#{utils.serialize(@settings.additionalData)}"
 
     # Bind change event to input if file API and ajax uploading is available.
     # Otherwise, embed swf (which invisibly overlays on top on the input)
     if has.fileAPI and has.ajaxUpload
-      @input.addEventListener "change", @handleFileSelection
+      @input.addEventListener "change", (event) => handleFileSelection event, @
     else
-      @embedSWF()
+      embedSWF @
+
+    if @settings.showCustomInput
+      setupCustomInput @
 
     # Create globally accessibly instance for Flash communication.
+    window.AjaxFileUpload = window.AjaxFileUpload or AjaxFileUpload
     window.AjaxFileUpload.instances = AjaxFileUpload.instances or []
     window.AjaxFileUpload.instances[@input.id] = @
 
   # **handleFileSelection(event)** Change event handler.
-  handleFileSelection: (event) =>
+  handleFileSelection = (event, instance) =>
 
-    if validateFiles event.target.files, @settings
+    settings = instance.settings
+
+    if settings.showCustomInput
+      fakeButton = document.getElementById("fu-button-#{event.target.id}")
+      fakeInput = document.getElementById("fu-input-#{event.target.id}")
+
+    if validateFiles instance
 
       # If autoUpload is set, triggers the upload.
-      @ajaxUpload() if @settings.autoUpload
+      if settings.autoUpload
+        ajaxUpload(instance)
 
       # Trigger onFileSelect callback.
-      @settings.onFileSelect [event.target.files]...
+      settings.onFileSelect [event.target.files]...
+
+      if settings.showCustomInput
+        fakeButton.innerHTML = settings.buttonSelectedText
+        utils.css instance.input, display: "none"
+        fakeButton.onclick = =>
+          ajaxUpload(instance)
+          return false
+        displayFileNames(fakeInput, event.target.files)
 
     return
 
   # **ajaxUpload(instance)** Handles ajax upload if FileAPI is supported.
-  ajaxUpload: =>
+  ajaxUpload = (instance) =>
 
     # Create XHR object
     xhr = new XMLHttpRequest()
 
     # Bind XHR events to callback proxies
     if xhr.upload
-      xhr.upload.addEventListener "progress", @handleAjaxProgress, false
-      xhr.upload.addEventListener "loadstart", @handleAjaxProgressStart, false
-      xhr.upload.addEventListener "load", @handleAjaxProgressEnd, false
+      xhr.upload.addEventListener "progress", (event) => handleAjaxProgress event, instance
+      xhr.upload.addEventListener "loadstart", (event) => handleAjaxProgressStart event, instance
+      xhr.upload.addEventListener "load", (event) => handleAjaxProgressEnd event, instance
     else
-      xhr.addEventListener "progress", @handleAjaxProgress, false
-    xhr.addEventListener "readystatechange", @handleAjaxStateChange, false
+      xhr.addEventListener "progress", (event) => handleAjaxProgress event, instance
+
+    xhr.addEventListener "readystatechange", (event) -> handleAjaxStateChange event, instance
 
     # Create formData object
     formData = new FormData()
 
     # Recursively store file(s) in formData object
-    formData.append file.name, file for file in @input.files
+    formData.append file.name, file for file in instance.input.files
 
     # Specify request settings
-    xhr.open @settings.method, @settings.url, true
+    xhr.open instance.settings.method, instance.settings.url, true
 
     # Set appropriate Accept request header.
-    switch @settings.dataType
+    switch instance.settings.dataType
       when "json"
         xhr.setRequestHeader("Accept", "application/json")
         break
@@ -164,39 +192,42 @@ class AjaxFileUpload
 
     return
 
-  handleAjaxStateChange: (event) =>
+  handleAjaxStateChange = (event, instance) =>
     xhr = event.target
     return unless xhr.readyState is 4
     response = xhr.responseText
-    if ~xhr.getResponseHeader("content-type").indexOf("application/json") and !!window.JSON
+    if ~(xhr.getResponseHeader("content-type").indexOf("application/json")) and !!window.JSON
       response = JSON.parse response
     if xhr.status is 200 or xhr.status is 201
-      @settings.onSuccess [response, @input.files, xhr]...
+      instance.settings.onSuccess [response, instance.input.files, xhr]...
     else
-      @settings.onError [response, @input.files, xhr]...
+      instance.settings.onError [response, instance.input.files, xhr]...
     return
 
-  handleAjaxProgressStart: (event) => @settings.onProgressStart [@input.files, event.target]...
-  handleAjaxProgress: (event) => @settings.onProgress [event.loaded, event.total, @input.files, event.target]...
-  handleAjaxProgressEnd: (event) => @settings.onProgressEnd [@input.files, event.target]...
+  handleAjaxProgressStart = (event, instance) =>
+    instance.settings.onProgressStart [instance.input.files, event.target]...
+  handleAjaxProgress = (event, instance) =>
+    instance.settings.onProgress [event.loaded, event.total, instance.input.files, event.target]...
+  handleAjaxProgressEnd = (event, instance) =>
+    instance.settings.onProgressEnd [instance.input.files, event.target]...
 
   # **embedSWF()** Embeds swf invisibly on top of provided input.
-  embedSWF: =>
+  embedSWF = (instance) ->
 
     # Set FlashVars to be passed to both &lt;embed&gt; and &lt;object&gt;
     flashVars =
-      id: @input.id
-      url: @settings.url
-      method: @settings.method
-      debug: @settings.debug
-      multiple: @settings.multiple
-      additionalData: @settings.additionalData
-      sizeLimit: @settings.sizeLimit
-      allowedTypes: @settings.allowedTypes
+      id: instance.input.id
+      url: instance.settings.url
+      method: instance.settings.method
+      debug: instance.settings.debug
+      multiple: instance.settings.multiple
+      additionalData: instance.settings.additionalData
+      sizeLimit: instance.settings.sizeLimit
+      allowedTypes: instance.settings.allowedTypes
 
     # Set &lt;param&gt; name and values to be passed to &lt;object&gt; as tags and to &lt;embed&gt; as a query string.
     params =
-      movie: @settings.pathToSwf
+      movie: instance.settings.pathToSwf
       quality: "low"
       play: "true"
       loop: "true"
@@ -210,27 +241,27 @@ class AjaxFileUpload
 
     # Set attributes for &lt;embed&gt; tag
     attrs =
-      src: @settings.pathToSwf
-      id: "fu-embed-#{@input.id}"
-      name: "fu-embed-#{@input.id}"
+      src: instance.settings.pathToSwf
+      id: "fu-embed-#{instance.input.id}"
+      name: "fu-embed-#{instance.input.id}"
       classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
       type: "application/x-shockwave-flash"
       pluginspage: "http://www.adobe.com/go/getflashplayer"
       FlashVars: utils.serialize flashVars
-      width: @input.offsetWidth + 5
-      height: @input.offsetHeight + 5
+      width: instance.input.offsetWidth + 5
+      height: instance.input.offsetHeight + 5
       style: "position: absolute"
 
     # Create or find &lt;object&gt; and &lt;embed&gt; elements for SWF.
-    embed = document.getElementById "fu-embed-#{@input.id}"
+    embed = document.getElementById "fu-embed-#{instance.input.id}"
     embed = document.createElement "embed" unless embed
-    objectEl = document.getElementById "fu-object-#{@input.id}"
+    objectEl = document.getElementById "fu-object-#{instance.input.id}"
     objectEl = document.createElement "object" unless objectEl
 
     # Set required &lt;object&gt; attributes
     utils.attr objectEl,
                classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
-               id: "fu-object-#{@input.id}"
+               id: "fu-object-#{instance.input.id}"
                align: "left"
 
     # Create &lt;param&gt; tags and append to &lt;object&gt; tag.
@@ -249,20 +280,90 @@ class AjaxFileUpload
     objectEl.appendChild embed
 
     # Insert &lt;object&gt; after provided input
-    @input.parentNode.insertBefore objectEl, @input.nextSibling
+    instance.input.parentNode.insertBefore objectEl, instance.input.nextSibling
 
     return
 
-  # Simple utilities not worth re-writing.
+  setupCustomInput = (instance) ->
+
+    providedInput = instance.input
+
+    # create wrapper for fake input/button
+    wrapId = "fu-wrap-#{providedInput.id}"
+    wrap = document.createElement("div")
+    utils.attr wrap, class: "fu-wrap", id: wrapId
+    utils.css wrap, position: "relative"
+
+    # fake input for display of file name/path
+    input = document.createElement("input")
+    utils.attr input, type: "text", disabled: "disabled", class: "fu-input", id: "fu-input-#{providedInput.id}"
+
+    # fake button for styling
+    button = document.createElement("button")
+    utils.attr button, class: "fu-button", id: "fu-button-#{providedInput.id}"
+    if instance.settings.autoUpload
+      button.innerHTML = instance.settings.buttonSelectedText
+    else
+      button.innerHTML = instance.settings.buttonEmptyText
+
+    button.onclick = (event) ->
+#      if event.target.innerHTML is @settings.buttonSelectedText
+#        upload()
+      return false
+
+    # append input and button to wrap
+    wrap.appendChild input
+    wrap.appendChild button
+
+    # insert wrapper after provided input
+    providedInput.parentNode.insertBefore wrap, providedInput.nextSibling
+
+    # move provided input inside wrapper for positioning
+    wrap.appendChild providedInput
+
+    # overlay file input on top of fake inputs
+    utils.css providedInput, position: "absolute", top: 0, left: 0, opacity: 0
+
+    # because we're overlaying, add helper class for state styling
+    providedInput.onmouseover = -> utils.attr wrap, class: "fu-wrap fu-hover"
+    providedInput.onmouseout = -> utils.attr wrap, class: "fu-wrap"
+    providedInput.onmousedown = -> utils.attr wrap, class: "fu-wrap fu-active"
+    providedInput.onmouseup = -> utils.attr wrap, class: "fu-wrap"
+
+    # we want the values *after* we've absolutely positioned the input
+    # so we can acurately set width/height
+    utils.css providedInput,
+              width: document.getElementById(wrapId).clientWidth + "px"
+              height: document.getElementById(wrapId).clientHeight + "px"
+
+    return providedInput
+
+
+  displayFileNames = (input, files) ->
+    return if files.length is 0
+    return input.value = files[0].name if files.length is 1
+    if files.length > 1
+      names = ""
+      for file in files
+        names += file.name + " "
+      return input.value = names
+    return
+
+
+  # Simple utilities not worth using a library for.
   utils =
 
-    # Shortcut for setAttribute
+    css: (element, properties) ->
+      for property, value of properties
+        element.style[property] = value
+
+    # Shortcut for setAttribute and className
     attr: (element, attributes) ->
       for attribute, value of attributes
-        if attributes.hasOwnProperty(attribute)
-          attribute = "className" if attribute is "class"
+        if attribute is "class"
+          element.className = value
+        else if attributes.hasOwnProperty(attribute)
           element.setAttribute attribute, value
-      return
 
     # Turns an object into a URL friendly query string.
     serialize: (obj, prefix) ->
@@ -289,7 +390,7 @@ class AjaxFileUpload
   # Feature detection.
   has =
     fileAPI: !!window.File and !!window.FileReader and !!window.FileList and !!window.Blob
-    ajaxUpload: !!window.XMLHttpRequestUpload
+    ajaxUpload: !!window.XMLHttpRequestUpload and !!window.FormData
 
   # Validation methods.
   valid =
@@ -304,8 +405,10 @@ class AjaxFileUpload
             match = true
       return match
 
-  # Validation wrapper.
-  validateFiles = (files, settings) ->
+  # Validation wrapper method.
+  validateFiles = (instance) ->
+    files = instance.input.files
+    settings = instance.settings
     messages = []
     if files.length is 0
       settings.onError.apply @, ["No file selected"]
@@ -334,8 +437,8 @@ if window.jQuery
   jQuery.ajaxFileUpload = AjaxFileUpload
   jQuery.fn.ajaxFileUpload = (options) ->
     this.each (i, input) ->
-                new AjaxFileUpload input, options
-                return
+      new AjaxFileUpload input, options
+      return
 
 # #### Expose to AMD/RequireJS
 if typeof define is "function" and define.amd

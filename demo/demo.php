@@ -5,7 +5,7 @@
 <html dir="ltr" lang="en-US">
 <head>
 <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-<title>jQuery File Upload Plugin</title>
+<title>Ajax File Upload Plugin</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
 <script type="text/javascript" src="../dist/AjaxFileUpload-1.0.0.js"></script>
@@ -45,7 +45,7 @@
             <div class="example">
                 <h2>Example 1: Simple ajax auto-upload upon selection.</h2>
                 <form action="upload.php" method="post" enctype="multipart/form-data" id="file-upload-form1">
-                    <input type="file" name="file" id="file1"/>
+                    <input type="file" name="file" id="file1" accept="image/jpg,image/jpeg,image/png,image/gif,image/bmp,image/tiff"/>
                 </form>
                 <script type="text/javascript" charset="utf-8">
                     //            $('#file1').ajaxFileUpload({
@@ -53,21 +53,24 @@
                     new AjaxFileUpload(input, {
                         url: "http://fileupload.jchilders.com/demo/upload.php",
                         multiple: true,
-                        sizeLimit: 5000000,
+                        sizeLimit: 2000000,
+                        showCustomInput: true,
+//                        autoUpload: true,
                         allowedTypes: "*.jpg;*.jpeg;*.gif;*.png",
                         onSuccess: function(data, files, xhr) {
                             console.log("onSuccess", data, JSON.stringify(files), xhr);
                             var response = JSON.stringify(data);
                             $(input).parents('.example').find('.response').show().find('pre').append("<span>" + response + "</span>");
                         },
-                        onError: function(error) {
-                            console.log("onError", error)
+                        onError: function(message) {
+                            console.log("onError", message);
                         },
                         onFileSelect: function(selection) {
                             console.log("onSelection: ", selection);
                         },
                         onProgress: function(loaded, total, files, xhr) {
                             console.log("onProgress", loaded, total, files, xhr);
+
                         },
                         onProgressStart: function(files, xhr) {
                             console.log("onProgressStart", files, xhr);
@@ -77,22 +80,23 @@
                         }
                     });
                 </script>
-                <strong>HTML:</strong>
-            <pre class="brush: js; tab-size: 2;">&lt;form action=&quot;upload.php&quot; method=&quot;post&quot; enctype=&quot;multipart/form-data&quot;&gt;
-    &lt;label for=&quot;file1&quot;&gt;Select a file: &lt;/label&gt;
-    &lt;input type=&quot;file&quot; name=&quot;file&quot; id=&quot;<strong>file1</strong>&quot;/&gt;
-&lt;/form&gt;</pre>
-                <strong>JS:</strong>
-                <pre>&lt;script type=&quot;text/javascript&quot;&gt;
-var input = document.getElementById(&quot;<strong>file1</strong>&quot;),
-ajaxFileUpload = new <strong>AjaxFileUpload</strong>(input, {
-    url: input.form.action
-});
-&lt;/script&gt;</pre>
+                <!--<strong>HTML:</strong>-->
+            <!--<pre class="brush: js; tab-size: 2;">&lt;form action=&quot;upload.php&quot; method=&quot;post&quot; enctype=&quot;multipart/form-data&quot;&gt;-->
+    <!--&lt;label for=&quot;file1&quot;&gt;Select a file: &lt;/label&gt;-->
+    <!--&lt;input type=&quot;file&quot; name=&quot;file&quot; id=&quot;<strong>file1</strong>&quot;/&gt;-->
+<!--&lt;/form&gt;</pre>-->
+                <!--<strong>JS:</strong>-->
+                <!--<pre>&lt;script type=&quot;text/javascript&quot;&gt;-->
+<!--var input = document.getElementById(&quot;<strong>file1</strong>&quot;),-->
+<!--ajaxFileUpload = new <strong>AjaxFileUpload</strong>(input, {-->
+    <!--url: input.form.action-->
+<!--});-->
+<!--&lt;/script&gt;</pre>-->
                 <div class="response" style="display: none;">
                     <strong>Response</strong>
                     <pre></pre>
                 </div>
+                <div class="uploads"></div>
             </div>
         </div>
 

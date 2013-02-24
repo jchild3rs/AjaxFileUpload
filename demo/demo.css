@@ -23,6 +23,7 @@ h1 {
   font-size: 60px;
   text-shadow: 2px 2px 2px #fff;
   margin: 50px 0;
+  color: #333;
 }
 
 #sub-head {
@@ -112,7 +113,8 @@ h1 {
   -webkit-background-clip: padding-box;
 }
 
-.fu-button:active {
+.fu-button:active,
+.fu-active .fu-button {
   background: #3282d3;
   border: 1px solid #154c8c;
   border-bottom: 1px solid #0e408e;
