@@ -45,18 +45,23 @@
             <div class="example">
                 <h2>Example 1: Simple ajax auto-upload upon selection.</h2>
                 <form action="upload.php" method="post" enctype="multipart/form-data" id="file-upload-form1">
-                    <input type="file" name="file" id="file1" accept="image/jpg,image/jpeg,image/png,image/gif,image/bmp,image/tiff"/>
+                    <input type="file" name="file" id="file1" />
                 </form>
+
+                <progress id="progress-bar" style="display: none;">
+                    <strong class="fallback">Progress: <span class="percent">0</span>% done.</strong>
+                </progress>
+
                 <script type="text/javascript" charset="utf-8">
                     //            $('#file1').ajaxFileUpload({
                     var input = document.getElementById("file1");
                     new AjaxFileUpload(input, {
                         url: "http://fileupload.jchilders.com/demo/upload.php",
                         multiple: true,
-                        sizeLimit: 2000000,
+//                        sizeLimit: 200000000,
                         showCustomInput: true,
-//                        autoUpload: true,
-                        allowedTypes: "*.jpg;*.jpeg;*.gif;*.png",
+                        autoUpload: true,
+                        allowedTypes: ['image/jpg', 'image/jpeg', 'image/png'],
                         onSuccess: function(data, files, xhr) {
                             console.log("onSuccess", data, JSON.stringify(files), xhr);
                             var response = JSON.stringify(data);
@@ -70,12 +75,18 @@
                         },
                         onProgress: function(loaded, total, files, xhr) {
                             console.log("onProgress", loaded, total, files, xhr);
-
+                            $("#progress-bar").attr({
+                                "max": total,
+                                "value": loaded
+                            });
+                            $("progress#progress-bar .percent").text(Math.round(total/loaded));
                         },
                         onProgressStart: function(files, xhr) {
+                            $("#progress-bar").fadeIn();
                             console.log("onProgressStart", files, xhr);
                         },
                         onProgressEnd: function(files, xhr) {
+                            $("#progress-bar").fadeOut();
                             console.log("onProgressEnd", files, xhr);
                         }
                     });

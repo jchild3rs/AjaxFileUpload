@@ -1,5 +1,6 @@
 (function() {
-  var AjaxFileUpload;
+  var AjaxFileUpload,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   AjaxFileUpload = (function() {
     var ajaxUpload, defaultSettings, displayFileNames, embedSWF, handleAjaxProgress, handleAjaxProgressEnd, handleAjaxProgressStart, handleAjaxStateChange, handleFileSelection, has, setupCustomInput, utils, valid, validateFiles,
@@ -11,15 +12,16 @@
       autoUpload: false,
       dataType: "json",
       method: "post",
-      pathToSwf: "AjaxFileUpload.swf",
+      pathToSwf: "/dist/AjaxFileUpload.swf",
       showCustomInput: false,
       buttonEmptyText: "Select",
       buttonSelectedText: "Upload",
       showProgressBar: false,
+      progressBarElement: "",
       debug: false,
       multiple: false,
       sizeLimit: 0,
-      allowedTypes: "",
+      allowedTypes: [],
       onSuccess: function() {},
       onError: function() {},
       onFileSelect: function() {},
@@ -29,8 +31,11 @@
     };
 
     function AjaxFileUpload(input, options) {
-      var _this = this;
       this.input = input;
+      this.upload = __bind(this.upload, this);
+
+      this.reset = __bind(this.reset, this);
+
       if (this.input === null || this.input.type !== "file") {
         return;
       }
@@ -38,6 +43,11 @@
       if (this.input.multiple || this.settings.multiple) {
         this.input.multiple = true;
         this.settings.multiple = true;
+      }
+      if (this.settings.allowedTypes.length > 0) {
+        utils.attr(this.input, {
+          accept: this.settings.allowedTypes.join()
+        });
       }
       if (this.settings.url === "") {
         this.settings.url = this.input.getAttribute("data-url");
@@ -51,20 +61,29 @@
       if (this.settings.additionalData !== {}) {
         this.settings.url += "" + (utils.serialize(this.settings.additionalData));
       }
-      if (has.fileAPI && has.ajaxUpload) {
-        this.input.addEventListener("change", function(event) {
-          return handleFileSelection(event, _this);
-        });
-      } else {
-        embedSWF(this);
-      }
       if (this.settings.showCustomInput) {
         setupCustomInput(this);
       }
+      embedSWF(this);
       window.AjaxFileUpload = window.AjaxFileUpload || AjaxFileUpload;
       window.AjaxFileUpload.instances = AjaxFileUpload.instances || [];
       window.AjaxFileUpload.instances[this.input.id] = this;
+      return;
     }
+
+    AjaxFileUpload.prototype.reset = function() {
+      var fakeButton;
+      fakeButton = document.getElementById("fu-button-" + this.input.id);
+      fakeButton.innerHTML = this.settings.buttonEmptyText;
+      this.input.value = "";
+      utils.css(this.input, {
+        display: "block"
+      });
+    };
+
+    AjaxFileUpload.prototype.upload = function() {
+      ajaxUpload(this);
+    };
 
     handleFileSelection = function(event, instance) {
       var fakeButton, fakeInput, settings;
@@ -94,6 +113,9 @@
 
     ajaxUpload = function(instance) {
       var file, formData, xhr, _i, _len, _ref;
+      if (instance.input.files.length === 0) {
+        return;
+      }
       xhr = new XMLHttpRequest();
       if (xhr.upload) {
         xhr.upload.addEventListener("progress", function(event) {
@@ -146,6 +168,7 @@
       }
       if (xhr.status === 200 || xhr.status === 201) {
         (_ref = instance.settings).onSuccess.apply(_ref, [response, instance.input.files, xhr]);
+        instance.reset();
       } else {
         (_ref1 = instance.settings).onError.apply(_ref1, [response, instance.input.files, xhr]);
       }
@@ -153,6 +176,7 @@
 
     handleAjaxProgressStart = function(event, instance) {
       var _ref;
+      document.getElementById("fu-wrap-" + instance.input.id).className += " fu-loading";
       return (_ref = instance.settings).onProgressStart.apply(_ref, [instance.input.files, event.target]);
     };
 
@@ -163,11 +187,14 @@
 
     handleAjaxProgressEnd = function(event, instance) {
       var _ref;
+      document.getElementById("fu-wrap-" + instance.input.id).className = document.getElementById("fu-wrap-" + instance.input.id).className.replace(" fu-loading", "");
       return (_ref = instance.settings).onProgressEnd.apply(_ref, [instance.input.files, event.target]);
     };
 
     embedSWF = function(instance) {
-      var attrs, embed, flashVars, key, objectEl, param, params, val;
+      var allowedTypes, attrs, embed, flashVars, key, objectEl, param, params, refNode, val, wrap;
+      allowedTypes = instance.settings.allowedTypes;
+      allowedTypes = allowedTypes.join(";").replace(/[a-z]*\//ig, "*.");
       flashVars = {
         id: instance.input.id,
         url: instance.settings.url,
@@ -176,7 +203,7 @@
         multiple: instance.settings.multiple,
         additionalData: instance.settings.additionalData,
         sizeLimit: instance.settings.sizeLimit,
-        allowedTypes: instance.settings.allowedTypes
+        allowedTypes: allowedTypes
       };
       params = {
         movie: instance.settings.pathToSwf,
@@ -211,6 +238,27 @@
       if (!objectEl) {
         objectEl = document.createElement("object");
       }
+      wrap = document.getElementById("fu-wrap-" + instance.input.id);
+      embed.onmouseover = function() {
+        return utils.attr(wrap, {
+          "class": "fu-wrap fu-hover"
+        });
+      };
+      embed.onmouseout = function() {
+        return utils.attr(wrap, {
+          "class": "fu-wrap"
+        });
+      };
+      embed.onmousedown = function() {
+        return utils.attr(wrap, {
+          "class": "fu-wrap fu-active"
+        });
+      };
+      embed.onmouseup = function() {
+        return utils.attr(wrap, {
+          "class": "fu-wrap"
+        });
+      };
       utils.attr(objectEl, {
         classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000",
         id: "fu-object-" + instance.input.id,
@@ -229,7 +277,13 @@
       }
       utils.attr(embed, utils.merge(attrs, params));
       objectEl.appendChild(embed);
-      instance.input.parentNode.insertBefore(objectEl, instance.input.nextSibling);
+      if (instance.settings.showCustomInput) {
+        refNode = document.getElementById("fu-button-" + instance.input.id);
+        refNode.parentNode.insertBefore(objectEl, refNode.nextSibling);
+        instance.input.style.display = "none";
+      } else {
+        instance.input.parentNode.insertBefore(objectEl, instance.input.nextSibling);
+      }
     };
 
     setupCustomInput = function(instance) {
@@ -321,28 +375,22 @@
 
     utils = {
       css: function(element, properties) {
-        var property, value, _results;
-        _results = [];
+        var property, value;
         for (property in properties) {
           value = properties[property];
-          _results.push(element.style[property] = value);
+          element.style[property] = value;
         }
-        return _results;
       },
       attr: function(element, attributes) {
-        var attribute, value, _results;
-        _results = [];
+        var attribute, value;
         for (attribute in attributes) {
           value = attributes[attribute];
           if (attribute === "class") {
-            _results.push(element.className = value);
+            element.className = value;
           } else if (attributes.hasOwnProperty(attribute)) {
-            _results.push(element.setAttribute(attribute, value));
-          } else {
-            _results.push(void 0);
+            element.setAttribute(attribute, value);
           }
         }
-        return _results;
       },
       serialize: function(obj, prefix) {
         var k, p, str, v;
@@ -377,7 +425,9 @@
 
     has = {
       fileAPI: !!window.File && !!window.FileReader && !!window.FileList && !!window.Blob,
-      ajaxUpload: !!window.XMLHttpRequestUpload && !!window.FormData
+      ajaxUpload: !!window.XMLHttpRequestUpload && !!window.FormData,
+      typeFiltering: typeof document.createElement("input").accept === "string",
+      progressbar: document.createElement('progress').max !== void 0
     };
 
     valid = {
@@ -385,13 +435,14 @@
         return size <= sizeLimit;
       },
       fileType: function(type, allowedTypes) {
-        var match, types, validType, _i, _len;
+        var match, validType, _i, _len;
+        if (allowedTypes === [] || !has.typeFiltering) {
+          return true;
+        }
         match = false;
         if (!!allowedTypes) {
-          type = type.split("/")[1];
-          types = allowedTypes.toString().replace(/\*/g, "").split(";");
-          for (_i = 0, _len = types.length; _i < _len; _i++) {
-            validType = types[_i];
+          for (_i = 0, _len = allowedTypes.length; _i < _len; _i++) {
+            validType = allowedTypes[_i];
             if (~(validType.indexOf(type))) {
               match = true;
             }
@@ -407,20 +458,20 @@
       settings = instance.settings;
       messages = [];
       if (files.length === 0) {
-        settings.onError.apply(this, ["No file selected"]);
+        settings.onError.apply(instance, ["No file selected"]);
         return false;
       }
       for (_i = 0, _len = files.length; _i < _len; _i++) {
         file = files[_i];
-        if (!valid.sizeLimit(file.size, settings.sizeLimit)) {
+        if (settings.sizeLimit !== 0 && !valid.sizeLimit(file.size, settings.sizeLimit)) {
           messages.push("\"" + file.name + "\" is " + file.size + " bytes. Your provided limit is " + settings.sizeLimit);
         }
-        if (!valid.fileType(file.type, settings.allowedTypes)) {
+        if (settings.allowedTypes.length !== 0 && !valid.fileType(file.type, settings.allowedTypes)) {
           messages.push("\"" + (file.name.split(".")[1]) + "\" is not a valid file type/extension: " + settings.allowedTypes);
         }
       }
       if (messages.length > 0) {
-        settings.onError.apply(this, messages);
+        settings.onError.apply(instance, messages);
       }
       return messages.length === 0;
     };

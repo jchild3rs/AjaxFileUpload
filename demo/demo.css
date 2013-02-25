@@ -283,6 +283,11 @@ h1 {
   }
 }
 
+#progress-bar {
+  width: 100%;
+  display: block;
+}
+
 #response-data {
   width: 750px;
   margin: 100px auto 0;
