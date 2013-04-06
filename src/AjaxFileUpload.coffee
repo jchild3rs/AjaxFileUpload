@@ -3,6 +3,10 @@
 # IE9 and below require use of a SWF that is overlayed
 # on top of the original input.
 
+# TODO: Add size/type validation to SWF for IE.
+# TODO: Try to fix issue where if input is hidden when SWF is embedded, its height is 1px x 1px.
+# TODO: Fix progress bar callbacks.
+
 class AjaxFileUpload
 
 # ## Options
@@ -16,15 +20,14 @@ class AjaxFileUpload
 
     # **{Object}** Additional data you would like to
     # pass along with the request.
-    additionalData:
-      {}
+    additionalData: {}
 
     # **{Boolean}** If true, the upload will happen
     # upon file selection.
     autoUpload: false
 
     # **{String}** The data type you are using to communicate
-    # with the server. Currently *"json"* and *"xml"* are supported.
+    # with the server. Currently only *"json"* is supported.
     dataType: "json"
 
     # **{String}** The request method you would like
@@ -44,6 +47,8 @@ class AjaxFileUpload
     debug: false
 
     # **{Boolean}** Enables multiple file uploading.
+    # If the provided input has the multiple attribute,
+    # this settings automatically set to true.
     multiple: false
 
     # **{Integer}** Uploading file size limit in bytes.
@@ -81,11 +86,12 @@ class AjaxFileUpload
   # (input, options) Two paramters, the first should be an _HTMLInputElement_ (required), and the second is an object.
   constructor: (@input, options) ->
 
-    # Back out if provided input is null or isnt file
-    return if @input is null or @input.type isnt "file"
-
     # Merge provided settings w/ default
     @settings = utils.merge defaultSettings, options
+
+    # Back out and throw error if provided input is null or isnt file
+    if @input is null
+      !!window.console and console.log "[AjaxFileUploadError] Please provide a file input element."
 
     # If input has mutliple set, force multiple: true; setting.
     if @input.multiple or @settings.multiple
@@ -107,17 +113,17 @@ class AjaxFileUpload
 
     # Setup additional post data if present
     if @settings.additionalData isnt {}
-      @settings.url += "#{utils.serialize(@settings.additionalData)}"
+      @settings.url += "?#{utils.serialize(@settings.additionalData)}"
 
     if @settings.showCustomInput
       setupCustomInput @
 
     # Bind change event to input if file API and ajax uploading is available.
     # Otherwise, embed swf (which invisibly overlays on top on the input)
-#    if has.fileAPI and has.ajaxUpload
-#      @input.addEventListener "change", (event) => handleFileSelection event, @
-#    else
-    embedSWF @
+    if has.fileAPI and has.formData
+      @input.addEventListener "change", (event) => handleFileSelection event, @
+    else
+      embedSWF @
 
     # Create globally accessibly instance for Flash communication.
     window.AjaxFileUpload = window.AjaxFileUpload or AjaxFileUpload
@@ -127,37 +133,41 @@ class AjaxFileUpload
     return
 
   # ## Public methods.
+
+  # **reset()** Resets input.
   reset: =>
     fakeButton = document.getElementById("fu-button-#{@input.id}")
-#    fakeInput = document.getElementById("fu-input-#{@input.id}")
-#    fakeInput.value = ""
-    fakeButton.innerHTML = @settings.buttonEmptyText
+    fakeButton.innerHTML = @settings.buttonEmptyText if fakeButton?
+
+    fakeInput = document.getElementById("fu-input-#{@input.id}")
+    fakeInput.value = "" if fakeInput?
+
     @input.value = ""
     utils.css @input, display: "block"
     return
-  upload: =>
-    ajaxUpload @
-    return
+
+  # **upload()** Triggers ajax upload.
+  upload: => ajaxUpload @
+
+  # ## Private Methods
 
   # **handleFileSelection(event)** Change event handler.
   handleFileSelection = (event, instance) =>
 
     settings = instance.settings
 
-    if settings.showCustomInput
-      fakeButton = document.getElementById("fu-button-#{event.target.id}")
-      fakeInput = document.getElementById("fu-input-#{event.target.id}")
-
     if validateFiles instance
 
       # If autoUpload is set, triggers the upload.
       if settings.autoUpload
-        ajaxUpload(instance)
+        instance.upload()
 
       # Trigger onFileSelect callback.
       settings.onFileSelect [event.target.files]...
 
       if settings.showCustomInput
+        fakeButton = document.getElementById("fu-button-#{event.target.id}")
+        fakeInput = document.getElementById("fu-input-#{event.target.id}")
         fakeButton.innerHTML = settings.buttonSelectedText
         utils.css instance.input, display: "none"
         fakeButton.onclick = =>
@@ -226,18 +236,26 @@ class AjaxFileUpload
     return
 
   handleAjaxProgressStart = (event, instance) =>
-    document.getElementById("fu-wrap-#{instance.input.id}").className += " fu-loading"
+    if instance.settings.showCustomInput
+      document.getElementById("fu-wrap-#{instance.input.id}").className += " fu-loading"
     instance.settings.onProgressStart [instance.input.files, event.target]...
 
   handleAjaxProgress = (event, instance) =>
     instance.settings.onProgress [event.loaded, event.total, instance.input.files, event.target]...
 
   handleAjaxProgressEnd = (event, instance) =>
-    document.getElementById("fu-wrap-#{instance.input.id}").className = document.getElementById("fu-wrap-#{instance.input.id}").className.replace(" fu-loading", "")
+    if instance.settings.showCustomInput
+      wrap = document.getElementById("fu-wrap-#{instance.input.id}")
+      wrap.className = wrap.className.replace(" fu-loading", "")
     instance.settings.onProgressEnd [instance.input.files, event.target]...
 
   # **embedSWF()** Embeds swf invisibly on top of provided input.
   embedSWF = (instance) ->
+
+    # Back out if embed is already present.
+    embedId = "fu-embed-#{instance.input.id}"
+    if document.getElementById embedId isnt null
+      return
 
     # Convert type array into "*.ext;*.ext" string for Flash.
     allowedTypes = instance.settings.allowedTypes
@@ -271,7 +289,7 @@ class AjaxFileUpload
     # Set attributes for &lt;embed&gt; tag
     attrs =
       src: instance.settings.pathToSwf
-      id: "fu-embed-#{instance.input.id}"
+      id: embedId
       name: "fu-embed-#{instance.input.id}"
       classid: "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
       type: "application/x-shockwave-flash"
@@ -279,25 +297,13 @@ class AjaxFileUpload
       FlashVars: utils.serialize flashVars
       width: instance.input.offsetWidth + 5
       height: instance.input.offsetHeight + 5
-      style: "position: absolute"
 
     # Create or find &lt;object&gt; and &lt;embed&gt; elements for SWF.
-    embed = document.getElementById "fu-embed-#{instance.input.id}"
+    embed = document.getElementById embedId
     embed = document.createElement "embed" unless embed
-    objectEl = document.getElementById "fu-object-#{instance.input.id}"
-    objectEl = document.createElement "object" unless objectEl
 
     wrap = document.getElementById("fu-wrap-#{instance.input.id}")
-    embed.onmouseover = -> utils.attr wrap, class: "fu-wrap fu-hover"
-    embed.onmouseout = -> utils.attr wrap, class: "fu-wrap"
-    embed.onmousedown = -> utils.attr wrap, class: "fu-wrap fu-active"
-    embed.onmouseup = -> utils.attr wrap, class: "fu-wrap"
-
-    # Set required &lt;object&gt; attributes
-    utils.attr objectEl,
-               classid: "clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
-               id: "fu-object-#{instance.input.id}"
-               align: "left"
+    bindStateEventsToWrap(embed, wrap)
 
     # Create &lt;param&gt; tags and append to &lt;object&gt; tag.
     for key, val of params
@@ -306,23 +312,29 @@ class AjaxFileUpload
         utils.attr param,
                    name: key
                    value: val
-        objectEl.appendChild param
 
     # Apply attributes to &lt;embed&gt;
     utils.attr embed, utils.merge(attrs, params)
-
-    # Append &lt;embed&gt; into &lt;object&gt;
-    objectEl.appendChild embed
+    utils.css embed, position: "absolute", top: 0, left: 0, opacity: 0
 
     # Insert &lt;object&gt; after provided input
     if instance.settings.showCustomInput
       refNode = document.getElementById("fu-button-#{instance.input.id}")
-      refNode.parentNode.insertBefore objectEl, refNode.nextSibling
+      refNode.parentNode.insertBefore embed, refNode.nextSibling
       instance.input.style.display = "none"
     else
-      instance.input.parentNode.insertBefore objectEl, instance.input.nextSibling
+      instance.input.parentNode.insertBefore embed, instance.input.nextSibling
 
     return
+
+  # Add classes to wrap to help simulate hover/active states with CSS.
+  # This is nessecary since we're overlaying the file input or a swf.
+  bindStateEventsToWrap = (element, wrap) ->
+    element.onmouseover = -> utils.attr wrap, class: "fu-wrap fu-hover"
+    element.onmouseout = -> utils.attr wrap, class: "fu-wrap"
+    element.onmousedown = -> utils.attr wrap, class: "fu-wrap fu-active"
+    element.onmouseup = -> utils.attr wrap, class: "fu-wrap"
+
 
   setupCustomInput = (instance) ->
 
@@ -330,6 +342,11 @@ class AjaxFileUpload
 
     # create wrapper for fake input/button
     wrapId = "fu-wrap-#{providedInput.id}"
+
+    if document.getElementById(wrapId) isnt null
+      return false
+
+
     wrap = document.createElement("div")
     utils.attr wrap, class: "fu-wrap", id: wrapId
     utils.css wrap, position: "relative"
@@ -340,45 +357,42 @@ class AjaxFileUpload
 
     # fake button for styling
     button = document.createElement("button")
-    utils.attr button, class: "fu-button", id: "fu-button-#{providedInput.id}"
+    utils.attr button, class: "fu-button button", id: "fu-button-#{providedInput.id}"
     if instance.settings.autoUpload
       button.innerHTML = instance.settings.buttonSelectedText
     else
       button.innerHTML = instance.settings.buttonEmptyText
 
-    button.onclick = (event) ->
-#      if event.target.innerHTML is @settings.buttonSelectedText
-#        upload()
+    button.onclick = ->
+      if button.innerHTML is instance.settings.buttonSelectedText
+        instance.upload()
       return false
 
-    # append input and button to wrap
+    # Append input and button to wrap
     wrap.appendChild input
     wrap.appendChild button
 
-    # insert wrapper after provided input
+    # Insert wrapper after provided input
     providedInput.parentNode.insertBefore wrap, providedInput.nextSibling
 
-    # move provided input inside wrapper for positioning
+    # Move provided input inside wrapper for positioning
     wrap.appendChild providedInput
 
-    # overlay file input on top of fake inputs
+    # Overlay file input on top of fake inputs
     utils.css providedInput, position: "absolute", top: 0, left: 0, opacity: 0
 
-    # because we're overlaying, add helper class for state styling
-    providedInput.onmouseover = -> utils.attr wrap, class: "fu-wrap fu-hover"
-    providedInput.onmouseout = -> utils.attr wrap, class: "fu-wrap"
-    providedInput.onmousedown = -> utils.attr wrap, class: "fu-wrap fu-active"
-    providedInput.onmouseup = -> utils.attr wrap, class: "fu-wrap"
+    # Because we're overlaying, add helper class for state styling
+    bindStateEventsToWrap(providedInput, wrap)
 
-    # we want the values *after* we've absolutely positioned the input
-    # so we can acurately set width/height
+    # We want the values *after* we've absolutely positioned the input
+    # so we can acurately set width/height.
     utils.css providedInput,
               width: document.getElementById(wrapId).clientWidth + "px"
               height: document.getElementById(wrapId).clientHeight + "px"
 
     return providedInput
 
-
+  # Converts FileList array into comma seperated string
   displayFileNames = (input, files) ->
     return if files.length is 0
     return input.value = files[0].name if files.length is 1
@@ -432,15 +446,15 @@ class AjaxFileUpload
   # Feature detection.
   has =
     fileAPI: !!window.File and !!window.FileReader and !!window.FileList and !!window.Blob
-    ajaxUpload: !!window.XMLHttpRequestUpload and !!window.FormData
-    typeFiltering: typeof document.createElement("input").accept is "string"
+    formData: !!window.FormData
+    fileTypeFiltering: typeof document.createElement("input").accept is "string"
     progressbar: document.createElement('progress').max isnt undefined
 
   # Validation methods.
   valid =
     sizeLimit: (size, sizeLimit) -> return size <= sizeLimit
     fileType: (type, allowedTypes) ->
-      return true if allowedTypes is [] or not has.typeFiltering
+      return true if allowedTypes is [] or not has.fileTypeFiltering
       match = false
       if !!allowedTypes
         for validType in allowedTypes
@@ -460,7 +474,7 @@ class AjaxFileUpload
       return false
     for file in files
       if settings.sizeLimit isnt 0 and not valid.sizeLimit(file.size, settings.sizeLimit)
-        messages.push "\"#{file.name}\" is #{file.size} bytes. Your provided limit is #{settings.sizeLimit}"
+        messages.push "\"#{file.name}\" is #{file.size} bytes. Your provided limit is #{settings.sizeLimit} bytes."
       if settings.allowedTypes.length isnt 0 and not valid.fileType(file.type, settings.allowedTypes)
         messages.push "\"#{file.name.split(".")[1]}\" is not a valid file type/extension: #{settings.allowedTypes}"
     if messages.length > 0

@@ -1,6 +1,2 @@
-<?php
-error_reporting(0);
-//header('Content-Type: application/json');
-//header('Content-Type: text/plain');
-echo json_encode($_FILES);
-?>
+﻿<?php header("Content-Type: text/plain; charset=UTF-8"); ?>
+﻿{"_id":"bc66fb6a-11d3-4767-a253-83d532c2a692","description":"Uploaded by profile page","credit":"sc_user","associatedObjects":[],"originalImageURL":"https://s.qa.origin.sharecare.com.s3.amazonaws.com/img/profile/b/c/6/bc66fb6a-11d3-4767-a253-83d532c2a692.png","files":{"LARGE":{"size":{"name":"LARGE","width":240,"height":240},"url":"https://s.qa.origin.sharecare.com.s3.amazonaws.com/img/profile/b/c/6/bc66fb6a-11d3-4767-a253-83d532c2a692_240_240.png"},"MEDIUM":{"size":{"name":"MEDIUM","width":120,"height":120},"url":"https://s.qa.origin.sharecare.com.s3.amazonaws.com/img/profile/b/c/6/bc66fb6a-11d3-4767-a253-83d532c2a692_120_120.png"},"ORIGINAL":{"size":{"name":"ORIGINAL","width":1024,"height":768},"url":"https://s.qa.origin.sharecare.com.s3.amazonaws.com/img/profile/b/c/6/bc66fb6a-11d3-4767-a253-83d532c2a692.png"},"PRE_AVATAR":{"size":{"name":"PRE_AVATAR","width":248,"height":298},"url":"https://s.qa.origin.sharecare.com.s3.amazonaws.com/img/profile/b/c/6/bc66fb6a-11d3-4767-a253-83d532c2a692_248_298.png"}},"thumbNail":{"size":{"name":"THUMBNAIL","width":60,"height":60},"url":"https://s.qa.origin.sharecare.com.s3.amazonaws.com/img/profile/b/c/6/bc66fb6a-11d3-4767-a253-83d532c2a692_60_60.png"}}

@@ -58,9 +58,15 @@
                     new AjaxFileUpload(input, {
                         url: "http://fileupload.jchilders.com/demo/upload.php",
                         multiple: true,
-//                        sizeLimit: 200000000,
+                        sizeLimit: 5242880, // 5 MB
                         showCustomInput: true,
                         autoUpload: true,
+                        additionalData: {
+                            name: "na",
+                            description: "Uploaded by profile page",
+                            credit: "sc_user",
+                            fileSizeLimit: "5000000"
+                        },
                         allowedTypes: ['image/jpg', 'image/jpeg', 'image/png'],
                         onSuccess: function(data, files, xhr) {
                             console.log("onSuccess", data, JSON.stringify(files), xhr);

@@ -22,28 +22,67 @@
    raises(block, [expected], [message])
    //  */
 
-  var MOCK_INPUT = document.createElement("input");
-  MOCK_INPUT.type = "file";
-  MOCK_INPUT.id = "mock-file-input";
 
-  var INPUT_TYPES = ["button", "checkbox", "colorNew", "dateNew", "datetimeNew", "datetime-localNew", "emailNew", "hidden", "file", "image", "monthNew", "numberNew", "password", "radio", "rangeNew", "reset", "searchNew", "submit", "telNew", "text", "timeNew", "urlNew", "weekNew"];
 
-  module('validate.inputType()', {
+  module('Dev Usability', {
     setup: function() {
-      this.input = document.getElementById("mock-file-input");
-      this.instance = new AjaxFileUpload(document.getElementById("mock-file-input"), {
-        url: "../demo/upload.php"
-      });
+      this.el = document.getElementById("mock-file-input1");
     }
   });
-
-  test('fails if anything but "file" type', 1, function() {
-    strictEqual(true, true, "foo");
-//    for (var i = 0; i < INPUT_TYPES.length; i++) {
-//      var isFileType = INPUT_TYPES[i] === "file";
-//      strictEqual(this.instance.validate.inputType(INPUT_TYPES[i]), isFileType, 'When "' + INPUT_TYPES[i] + '", returns ' + isFileType);
-//    }
+  test("Provided input element is accessible via the instance", 1, function() {
+    var instance = new AjaxFileUpload(this.el);
+    strictEqual(this.el, instance.input, "It is accessible via instance.input");
   });
+  test("Provided settings are accessible via the instance", 2, function() {
+    var customSettings = { foo: "bar", onError: function() {} };
+    var instance = new AjaxFileUpload(this.el, customSettings);
+    strictEqual(customSettings.foo, instance.settings.foo, "Setting successfully passed a string through.");
+    strictEqual(customSettings.onError, instance.settings.onError, "Setting successfully passed a function/callback through.");
+  });
+  
+
+
+
+  module('Initialization', {
+    setup: function() {
+      this.el = document.getElementById("mock-file-input2");
+    }
+  });
+  test('Constructor: Provided element is a valid input.', 3, function() {
+    var instance = new AjaxFileUpload(this.el);
+    strictEqual(instance.input.nodeName === "INPUT", true, "Provided element is an input!");
+    strictEqual(instance.input.type === "file", true, "Provided input is a file input!");
+    
+    var instance2 = new AjaxFileUpload(document.createElement("div"));
+    console.log(instance2);
+    strictEqual(true, true, "asdf");
+    
+  });
+  
+
+
+
+  module('Public Methods', {
+    setup: function() {
+      this.el = document.getElementById("mock-file-input3");
+    }
+  });
+  test('upload(): Call upload against current isntance\'s input.', 1, function() {
+    // this.instance.reset();
+    this.instance = new AjaxFileUpload(this.el);
+    equal(true, true, 'woot');
+  });
+  test('reset(): Resets instance\'s input input.', 1, function() {
+    // this.instance.reset();
+    this.instance = new AjaxFileUpload(this.el);
+    equal(true, true, 'woot');
+  });
+  
+  
+  
+  
+  
+  
 
 }(jQuery));
 
