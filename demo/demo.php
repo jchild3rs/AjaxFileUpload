@@ -58,7 +58,7 @@
                     new AjaxFileUpload(input, {
                         url: "http://fileupload.jchilders.com/demo/upload.php",
                         multiple: true,
-                        sizeLimit: 5242880, // 5 MB
+//                        sizeLimit: 5242880, // 5 MB
                         showCustomInput: true,
                         autoUpload: true,
                         additionalData: {
@@ -67,7 +67,7 @@
                             credit: "sc_user",
                             fileSizeLimit: "5000000"
                         },
-                        allowedTypes: ['image/jpg', 'image/jpeg', 'image/png'],
+//                        allowedTypes: ['image/jpg', 'image/jpeg', 'image/png'],
                         onSuccess: function(data, files, xhr) {
                             console.log("onSuccess", data, JSON.stringify(files), xhr);
                             var response = JSON.stringify(data);
@@ -80,12 +80,12 @@
                             console.log("onSelection: ", selection);
                         },
                         onProgress: function(loaded, total, files, xhr) {
-                            console.log("onProgress", loaded, total, files, xhr);
-                            $("#progress-bar").attr({
+                            console.log("onProgress", parseInt(loaded/total * 100, 10), loaded, total, files, xhr);
+                            $("progress#progress-bar").attr({
                                 "max": total,
                                 "value": loaded
                             });
-                            $("progress#progress-bar .percent").text(Math.round(total/loaded));
+                            $("progress#progress-bar .percent").text(parseInt(loaded/total * 100, 10) + "%");
                         },
                         onProgressStart: function(files, xhr) {
                             $("#progress-bar").fadeIn();

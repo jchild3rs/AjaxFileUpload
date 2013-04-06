@@ -9,13 +9,13 @@
 
 class AjaxFileUpload
 
-# ## Options
-# Default settings that get deep merged with
-# user provided settings.
+  # ## Options
+  # Default settings that get deep merged with
+  # user provided settings.
   defaultSettings =
 
-  # **{String}** Request mapping to back-end service
-  # that handles the upload and returns a response.
+    # **{String}** Request mapping to back-end service
+    # that handles the upload and returns a response.
     url: ""
 
     # **{Object}** Additional data you would like to
@@ -121,7 +121,8 @@ class AjaxFileUpload
     # Bind change event to input if file API and ajax uploading is available.
     # Otherwise, embed swf (which invisibly overlays on top on the input)
     if has.fileAPI and has.formData
-      @input.addEventListener "change", (event) => handleFileSelection event, @
+      @input.addEventListener "change", (event) =>
+        handleFileSelection event, @
     else
       embedSWF @
 
@@ -147,13 +148,13 @@ class AjaxFileUpload
     return
 
   # **upload()** Triggers ajax upload.
-  upload: => ajaxUpload @
+  upload: =>
+    ajaxUpload @
 
   # ## Private Methods
 
   # **handleFileSelection(event)** Change event handler.
   handleFileSelection = (event, instance) =>
-
     settings = instance.settings
 
     if validateFiles instance
@@ -179,7 +180,6 @@ class AjaxFileUpload
 
   # **ajaxUpload(instance)** Handles ajax upload if FileAPI is supported.
   ajaxUpload = (instance) =>
-
     return if instance.input.files.length is 0
 
     # Create XHR object
@@ -187,13 +187,18 @@ class AjaxFileUpload
 
     # Bind XHR events to callback proxies
     if xhr.upload
-      xhr.upload.addEventListener "progress", (event) => handleAjaxProgress event, instance
-      xhr.upload.addEventListener "loadstart", (event) => handleAjaxProgressStart event, instance
-      xhr.upload.addEventListener "load", (event) => handleAjaxProgressEnd event, instance
+      xhr.upload.addEventListener "progress", (event) =>
+        handleAjaxProgress event, instance
+      xhr.upload.addEventListener "loadstart", (event) =>
+        handleAjaxProgressStart event, instance
+      xhr.upload.addEventListener "load", (event) =>
+        handleAjaxProgressEnd event, instance
     else
-      xhr.addEventListener "progress", (event) => handleAjaxProgress event, instance
+      xhr.addEventListener "progress", (event) =>
+        handleAjaxProgress event, instance
 
-    xhr.addEventListener "readystatechange", (event) -> handleAjaxStateChange event, instance
+    xhr.addEventListener "readystatechange", (event) ->
+      handleAjaxStateChange event, instance
 
     # Create formData object
     formData = new FormData()
@@ -310,12 +315,12 @@ class AjaxFileUpload
       if params.hasOwnProperty(key)
         param = document.createElement "param"
         utils.attr param,
-                   name: key
-                   value: val
+            name: key
+            value: val
 
     # Apply attributes to &lt;embed&gt;
     utils.attr embed, utils.merge(attrs, params)
-    utils.css embed, position: "absolute", top: 0, left: 0, opacity: 0
+    utils.css embed, position: "absolute", top: 0, left: 0, opacity: 0, cursor: "pointer"
 
     # Insert &lt;object&gt; after provided input
     if instance.settings.showCustomInput
@@ -330,14 +335,17 @@ class AjaxFileUpload
   # Add classes to wrap to help simulate hover/active states with CSS.
   # This is nessecary since we're overlaying the file input or a swf.
   bindStateEventsToWrap = (element, wrap) ->
-    element.onmouseover = -> utils.attr wrap, class: "fu-wrap fu-hover"
-    element.onmouseout = -> utils.attr wrap, class: "fu-wrap"
-    element.onmousedown = -> utils.attr wrap, class: "fu-wrap fu-active"
-    element.onmouseup = -> utils.attr wrap, class: "fu-wrap"
+    element.onmouseover = ->
+      utils.attr wrap, class: "fu-wrap fu-hover"
+    element.onmouseout = ->
+      utils.attr wrap, class: "fu-wrap"
+    element.onmousedown = ->
+      utils.attr wrap, class: "fu-wrap fu-active"
+    element.onmouseup = ->
+      utils.attr wrap, class: "fu-wrap"
 
 
   setupCustomInput = (instance) ->
-
     providedInput = instance.input
 
     # create wrapper for fake input/button
@@ -387,8 +395,8 @@ class AjaxFileUpload
     # We want the values *after* we've absolutely positioned the input
     # so we can acurately set width/height.
     utils.css providedInput,
-              width: document.getElementById(wrapId).clientWidth + "px"
-              height: document.getElementById(wrapId).clientHeight + "px"
+        width: document.getElementById(wrapId).clientWidth + "px"
+        height: document.getElementById(wrapId).clientHeight + "px"
 
     return providedInput
 
@@ -464,7 +472,6 @@ class AjaxFileUpload
 
   # Validation wrapper method.
   validateFiles = (instance) ->
-
     files = instance.input.files
     settings = instance.settings
     messages = []

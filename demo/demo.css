@@ -35,6 +35,10 @@ h1 {
   margin: 0 auto;
 }
 
+.fu-wrap {
+  cursor: pointer;
+}
+
 .fu-input {
   display: inline-block;
   vertical-align: top;

@@ -271,7 +271,8 @@
         position: "absolute",
         top: 0,
         left: 0,
-        opacity: 0
+        opacity: 0,
+        cursor: "pointer"
       });
       if (instance.settings.showCustomInput) {
         refNode = document.getElementById("fu-button-" + instance.input.id);
