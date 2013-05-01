@@ -3,9 +3,7 @@
 # IE9 and below require use of a SWF that is overlayed
 # on top of the original input.
 
-# TODO: Add size/type validation to SWF for IE.
 # TODO: Try to fix issue where if input is hidden when SWF is embedded, its height is 1px x 1px.
-# TODO: Fix progress bar callbacks.
 
 class AjaxFileUpload
 
@@ -37,14 +35,16 @@ class AjaxFileUpload
     # **{String}** Path to SWF that is required for IE9 and below
     pathToSwf: "/dist/AjaxFileUpload.swf"
 
+    # **{Boolean}** If true, a style-able fake element will be used.
     showCustomInput: false
+
+    # **{Boolean}** Label for button pre file section.
     buttonEmptyText: "Select"
+
+    # **{Boolean}** Label for button post file section.
     buttonSelectedText: "Upload"
 
-    showProgressBar: false
-    progressBarElement: ""
-
-    debug: false
+#    debug: false
 
     # **{Boolean}** Enables multiple file uploading.
     # If the provided input has the multiple attribute,
@@ -90,8 +90,8 @@ class AjaxFileUpload
     @settings = utils.merge defaultSettings, options
 
     # Back out and throw error if provided input is null or isnt file
-    if @input is null
-      !!window.console and console.log "[AjaxFileUploadError] Please provide a file input element."
+#    if @input is null
+#      !!window.console and console.log "[AjaxFileUploadError] Please provide a file input element."
 
     # If input has mutliple set, force multiple: true; setting.
     if @input.multiple or @settings.multiple
@@ -271,7 +271,7 @@ class AjaxFileUpload
       id: instance.input.id
       url: instance.settings.url
       method: instance.settings.method
-      debug: instance.settings.debug
+#      debug: instance.settings.debug
       multiple: instance.settings.multiple
       additionalData: instance.settings.additionalData
       sizeLimit: instance.settings.sizeLimit

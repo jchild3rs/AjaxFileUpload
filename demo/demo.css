@@ -1,12 +1,20 @@
-
 body {
   background: #edece8;
   color: #666;
   font-family: "museo-slab-1", "museo-slab-2", "Rockwell", "Georgia", serif;
+  line-height: 1.5;
   margin: 0;
   padding: 0 0 50px;
   /*text-align: center;*/
 }
+a {
+  color: #6e8b9e;
+}
+a:link {}
+a:visited {}
+a:hover {}
+a:active {}
+
 pre {
   padding: 15px;
   background: #fff;
@@ -22,8 +30,50 @@ pre {
 h1 {
   font-size: 60px;
   text-shadow: 2px 2px 2px #fff;
-  margin: 50px 0;
+  margin: 50px 0 25px;
   color: #333;
+}
+
+h2,h3 {
+  color: #333;
+}
+
+p.large {
+  font-size: 24px;
+}
+
+.note {
+  font-weight: 100;
+  padding: 15px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left-color: #eee;
+  border-top-color: #eee;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.table {
+  font-size: 12px;
+  font-weight: 100;
+  width: 100%;
+}
+.table tr {
+}
+.table th {
+  font-size: 14px;
+  font-weight: bold;
+}
+.table td,
+.table th {
+  padding: 5px 0;
+  border-bottom: 1px dashed #ccc;
+}
+
+footer {
+  border-top: 1px dashed #666;
+  margin-top: 40px;
+  padding-top: 20px;
 }
 
 #sub-head {
@@ -33,6 +83,16 @@ h1 {
 #main {
   width: 750px;
   margin: 0 auto;
+}
+
+#feature-list {
+  padding: 0;
+  overflow: hidden;
+  list-style: inside;
+}
+#feature-list li {
+  float: left;
+  width: 50%;
 }
 
 .fu-wrap {

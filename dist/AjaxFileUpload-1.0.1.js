@@ -1,4 +1,4 @@
-/*! Ajax File Upload Plugin - v1.0.0 - 2013-05-01
+/*! Ajax File Upload Plugin - v1.0.1 - 2013-05-01
 * https://github.com/jchild3rs/AjaxFileUpload
 * Copyright (c) 2013 James Childers; Licensed MIT */
 
@@ -20,9 +20,6 @@
       showCustomInput: false,
       buttonEmptyText: "Select",
       buttonSelectedText: "Upload",
-      showProgressBar: false,
-      progressBarElement: "",
-      debug: false,
       multiple: false,
       sizeLimit: 0,
       allowedTypes: [],
@@ -220,7 +217,6 @@
         id: instance.input.id,
         url: instance.settings.url,
         method: instance.settings.method,
-        debug: instance.settings.debug,
         multiple: instance.settings.multiple,
         additionalData: instance.settings.additionalData,
         sizeLimit: instance.settings.sizeLimit,
