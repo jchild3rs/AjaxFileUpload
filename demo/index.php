@@ -5,16 +5,12 @@
   <title>Ajax File Upload Plugin</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
   <meta name="viewport" content="width=device-width"/>
+  <link href='http://fonts.googleapis.com/css?family=Rokkitt:400,700' rel='stylesheet' type='text/css'>
+
   <link rel="stylesheet" href="demo.css">
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
   <script type="text/javascript" src="../dist/AjaxFileUpload-1.0.1.js"></script>
   <script type="text/javascript" src="demo.js"></script>
-  <script type="text/javascript" src="http://use.typekit.com/bax4uqj.js"></script>
-  <script type="text/javascript">try {
-    Typekit.load();
-  } catch (e) {
-  }</script>
-
 </head>
 <body>
 <nav id="top-bar">
